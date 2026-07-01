@@ -980,7 +980,7 @@ const store = {
   },
 
   // Actions Catégories financières
-  ajouterCategorie(nom: string) {
+  ajouterCategorie(nom: string): { success: boolean; error?: string } {
     const nomPropre = nom.trim();
     if (!nomPropre) return { success: false, error: 'Le nom de la catégorie ne peut pas être vide.' };
     if (state.categories.some((c) => c.toLowerCase() === nomPropre.toLowerCase())) {
@@ -989,7 +989,7 @@ const store = {
     store.dispatch({ type: 'AJOUTER_CATEGORIE', payload: nomPropre });
     return { success: true };
   },
-  modifierCategorie(ancienNom: string, nouveauNom: string) {
+  modifierCategorie(ancienNom: string, nouveauNom: string): { success: boolean; error?: string } {
     const nouveauNomPropre = nouveauNom.trim();
     if (!nouveauNomPropre) return { success: false, error: 'Le nom de la catégorie ne peut pas être vide.' };
     if (ancienNom === nouveauNomPropre) return { success: true };
@@ -999,13 +999,13 @@ const store = {
     store.dispatch({ type: 'MODIFIER_CATEGORIE', payload: { ancienNom, nouveauNom: nouveauNomPropre } });
     return { success: true };
   },
-  supprimerCategorie(nom: string) {
+  supprimerCategorie(nom: string): { success: boolean; error?: string } {
     store.dispatch({ type: 'SUPPRIMER_CATEGORIE', payload: nom });
     return { success: true };
   },
 
   // Actions Statuts des membres
-  ajouterStatut(nom: string) {
+  ajouterStatut(nom: string): { success: boolean; error?: string } {
     const nomPropre = nom.trim();
     if (!nomPropre) return { success: false, error: 'Le nom du statut ne peut pas être vide.' };
     if (state.statuts.some((s) => s.toLowerCase() === nomPropre.toLowerCase())) {
@@ -1014,7 +1014,7 @@ const store = {
     store.dispatch({ type: 'AJOUTER_STATUT', payload: nomPropre });
     return { success: true };
   },
-  modifierStatut(ancienNom: string, nouveauNom: string) {
+  modifierStatut(ancienNom: string, nouveauNom: string): { success: boolean; error?: string } {
     const nouveauNomPropre = nouveauNom.trim();
     if (!nouveauNomPropre) return { success: false, error: 'Le nom du statut ne peut pas être vide.' };
     if (ancienNom === nouveauNomPropre) return { success: true };
@@ -1024,13 +1024,13 @@ const store = {
     store.dispatch({ type: 'MODIFIER_STATUT', payload: { ancienNom, nouveauNom: nouveauNomPropre } });
     return { success: true };
   },
-  supprimerStatut(nom: string) {
+  supprimerStatut(nom: string): { success: boolean; error?: string } {
     store.dispatch({ type: 'SUPPRIMER_STATUT', payload: nom });
     return { success: true };
   },
 
   // Actions Caisses financières
-  creerCaisse(nom: string, description: string, code: string, responsable: string, objectif: number, categorie: string) {
+  creerCaisse(nom: string, description: string, code: string, responsable: string, objectif: number, categorie: string): { success: boolean; caisse?: Caisse; error?: string } {
     let codeCaisse = code;
     if (!codeCaisse || codeCaisse.trim() === '') {
       const cleanNom = nom.replace(/[^a-zA-Z0-9 ]/g, "").toUpperCase();
@@ -1060,7 +1060,7 @@ const store = {
     store.dispatch({ type: 'CREER_CAISSE', payload: nouvelleCaisse });
     return { success: true, caisse: nouvelleCaisse };
   },
-  modifierCaisse(id: string, nom: string, description: string, code: string, responsable: string, objectif: number, categorie: string) {
+  modifierCaisse(id: string, nom: string, description: string, code: string, responsable: string, objectif: number, categorie: string): { success: boolean; caisse?: Caisse; error?: string } {
     const caisseExistante = state.caisses.find((c) => c.id === id);
     if (!caisseExistante) {
       return { success: false, error: 'Caisse introuvable.' };
@@ -1093,7 +1093,7 @@ const store = {
   },
 
   // Actions Cotisations
-  enregistrerCotisation(idCaisse: string, idMembre: string, montant: number, commentaire?: string, typeDon?: string, modePaiement?: string) {
+  enregistrerCotisation(idCaisse: string, idMembre: string, montant: number, commentaire?: string, typeDon?: string, modePaiement?: string): { success: boolean; transaction?: Transaction; error?: string } {
     const timestamp = Date.now();
     const nouvelleTx: Transaction = {
       id: `tx-${timestamp}`,
@@ -1143,7 +1143,7 @@ const store = {
 
     return { success: true, transaction: nouvelleTx };
   },
-  modifierCotisation(idTx: string, nouveauMontant: number) {
+  modifierCotisation(idTx: string, nouveauMontant: number): { success: boolean; transaction?: Transaction; error?: string } {
     const valMontant = Number(nouveauMontant);
     const currentState = store.getState();
     const txExistante = currentState.transactions.find((t) => t.id === idTx);
@@ -1263,9 +1263,13 @@ const queryMethods = {
 
 export type DonneesStoreActions = typeof store & typeof queryMethods;
 
+export function useDonneesStore(): DonneesStateData & DonneesStoreActions;
+export function useDonneesStore<T>(
+  selector: (state: DonneesStateData & DonneesStoreActions) => T
+): T;
 export function useDonneesStore<T>(
   selector?: (state: DonneesStateData & DonneesStoreActions) => T
-): T {
+): any {
   const currentStoreState = useSyncExternalStore(
     store.subscribe,
     store.getState,

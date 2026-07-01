@@ -96,9 +96,13 @@ const store = {
   }
 };
 
+export function useAuthStore(): AuthState & { connexion: typeof store.connexion; deconnexion: typeof store.deconnexion };
+export function useAuthStore<T>(
+  selector: (state: AuthState & { connexion: typeof store.connexion; deconnexion: typeof store.deconnexion }) => T
+): T;
 export function useAuthStore<T>(
   selector?: (state: AuthState & { connexion: typeof store.connexion; deconnexion: typeof store.deconnexion }) => T
-): T {
+): any {
   const currentStoreState = useSyncExternalStore(
     store.subscribe,
     store.getState,
