@@ -27,7 +27,7 @@ export const Predications: React.FC = () => {
   return (
     <div className="pb-20 space-y-16">
       {/* HEADER SECTION */}
-      <section className="relative bg-slate-950 text-white py-20 text-center">
+      <section className="relative bg-slate-950 text-white py-14 sm:py-20 text-center">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-25"
           style={{
@@ -36,7 +36,7 @@ export const Predications: React.FC = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950/90" />
         <div className="relative max-w-4xl mx-auto px-4 space-y-4">
-          <h1 className="font-poppins font-black text-4xl sm:text-5xl">Prédications & Sermons</h1>
+          <h1 className="font-poppins font-black text-2xl sm:text-4xl lg:text-5xl">Prédications & Sermons</h1>
           <p className="text-slate-300 text-sm sm:text-base max-w-xl mx-auto font-light">
             Écoutez les messages inspirés de la Parole de Dieu, visionnez les cultes passés et approfondissez vos connaissances spirituelles.
           </p>

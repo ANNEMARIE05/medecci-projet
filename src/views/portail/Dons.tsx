@@ -70,7 +70,7 @@ export const Dons: React.FC = () => {
     <div className="bg-[#F8FAFC] pb-20 space-y-16 font-outfit">
       
       {/* HEADER SECTION */}
-      <section className="relative bg-slate-950 text-white py-24 text-center overflow-hidden">
+      <section className="relative bg-slate-950 text-white py-14 sm:py-24 text-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-20"
           style={{
@@ -82,7 +82,7 @@ export const Dons: React.FC = () => {
           <span className="text-xs font-bold uppercase tracking-widest text-medecci-or bg-white/10 px-4 py-2 rounded-full border border-white/10">
             SOUTIEN FINANCIER
           </span>
-          <h1 className="font-cormorant italic font-bold text-4xl sm:text-7xl leading-tight">Dons & Offrandes</h1>
+          <h1 className="font-cormorant italic font-bold text-3xl sm:text-6xl lg:text-7xl leading-tight">Dons & Offrandes</h1>
           <p className="text-slate-350 text-sm sm:text-base max-w-xl mx-auto font-light leading-relaxed">
             Exprimez votre obéissance et votre amour à Dieu à travers vos dîmes, offrandes de grâce et soutiens aux œuvres d'évangélisation et de construction.
           </p>
@@ -91,7 +91,7 @@ export const Dons: React.FC = () => {
 
       {/* FORMULAIRE DE DON & GARANTIES */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-12">
           
           {/* EXPLICATION / SÉCURITÉ */}
           <div className="space-y-6 lg:border-r lg:border-[#E2E8F0] lg:pr-8">

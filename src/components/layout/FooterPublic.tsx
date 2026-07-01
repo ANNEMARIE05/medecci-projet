@@ -118,7 +118,7 @@ export const FooterPublic: React.FC = () => {
             </p>
             <Link
               href="/dons"
-              className="inline-flex items-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair text-white px-5 py-3 rounded-xl text-sm font-semibold shadow-md lueur-or hover:opacity-95 transition-all duration-300 w-full justify-center"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair text-white px-5 py-3 rounded-xl text-sm font-semibold shadow-md hover:opacity-95 transition-opacity duration-200 w-full justify-center"
             >
               <Heart className="h-4 w-4 fill-white" />
               <span>Faire une Offrande</span>

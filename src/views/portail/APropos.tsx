@@ -106,10 +106,10 @@ export const APropos: React.FC = () => {
   );
 
   return (
-    <div className="bg-[#F8FAFC] pb-20 space-y-24 font-outfit">
+    <div className="bg-[#F8FAFC] pb-12 sm:pb-20 space-y-12 sm:space-y-24 font-outfit">
       
       {/* 1. HEADER PAGE */}
-      <section className="relative bg-slate-950 text-white py-28 text-center overflow-hidden">
+      <section className="relative bg-slate-950 text-white py-16 sm:py-28 text-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-25"
           style={{
@@ -121,7 +121,7 @@ export const APropos: React.FC = () => {
           <span className="text-xs font-bold uppercase tracking-widest text-medecci-or bg-white/10 px-4 py-2 rounded-full border border-white/10">
             NOTRE IDENTITÉ
           </span>
-          <h1 className="font-cormorant italic font-bold text-4xl sm:text-7xl leading-tight">Qui Sommes-Nous ?</h1>
+          <h1 className="font-cormorant italic font-bold text-3xl sm:text-6xl lg:text-7xl leading-tight">Qui Sommes-Nous ?</h1>
           <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto font-light leading-relaxed">
             Découvrez notre histoire prophétique, nos croyances théologiques et les bergers dévoués qui conduisent le peuple de Dieu.
           </p>
@@ -130,7 +130,7 @@ export const APropos: React.FC = () => {
 
       {/* 2. HISTORIQUE & FONDATION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           
           <motion.div
             initial={{ opacity: 0, x: -40 }}
@@ -190,7 +190,7 @@ export const APropos: React.FC = () => {
       </section>
 
       {/* 3. VISION & MISSION */}
-      <section className="bg-white border-y border-[#E2E8F0] py-24">
+      <section className="bg-white border-y border-[#E2E8F0] py-12 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             
@@ -235,7 +235,7 @@ export const APropos: React.FC = () => {
       {/* 4. MOT DU PRESIDENT FONDATEUR */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-3xl p-8 sm:p-12 border border-[#E2E8F0] shadow-premium">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-12 items-center">
             
             {/* Photo du pasteur */}
             <div className="flex flex-col items-center text-center space-y-4 shrink-0">

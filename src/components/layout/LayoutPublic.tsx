@@ -37,7 +37,7 @@ export const LayoutPublic: React.FC<{ children: React.ReactNode }> = ({ children
           href="https://wa.me/2250758526766"
           target="_blank"
           rel="noopener noreferrer"
-          className="h-12 w-12 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer"
+          className="h-12 w-12 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-lg hover:bg-[#1da851] transition-colors duration-200 cursor-pointer"
           title="Nous contacter sur WhatsApp"
         >
           <svg className="h-6.5 w-6.5 fill-white" viewBox="0 0 24 24">
@@ -49,12 +49,10 @@ export const LayoutPublic: React.FC<{ children: React.ReactNode }> = ({ children
         {showScroll && (
           <button
             onClick={scrollToTop}
-            className="h-12 w-12 bg-medecci-bleuRoyal text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 hover:bg-medecci-bleuClair transition-all duration-300 cursor-pointer relative"
+            className="h-12 w-12 bg-medecci-bleuRoyal text-white rounded-full flex items-center justify-center shadow-lg hover:bg-medecci-bleuClair transition-colors duration-200 cursor-pointer"
             title="Retourner en haut"
           >
-            {/* Pulsing ring */}
-            <span className="absolute inset-0 rounded-full bg-medecci-bleuRoyal/40 animate-ping opacity-75" />
-            <ArrowUp className="h-6 w-6 relative z-10" />
+            <ArrowUp className="h-6 w-6" />
           </button>
         )}
       </div>

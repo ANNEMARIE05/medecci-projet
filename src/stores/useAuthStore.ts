@@ -68,6 +68,13 @@ const getInitialState = (): AuthState => {
   };
 };
 
+// Cached server snapshot — must be stable to avoid infinite loop with useSyncExternalStore
+const SERVER_INITIAL_STATE: AuthState = {
+  utilisateur: null,
+  jeton: null,
+  estConnecte: false,
+};
+
 let state = getInitialState();
 const listeners = new Set<() => void>();
 
@@ -106,7 +113,7 @@ export function useAuthStore<T>(
   const currentStoreState = useSyncExternalStore(
     store.subscribe,
     store.getState,
-    () => getInitialState()
+    () => SERVER_INITIAL_STATE
   );
 
   const fullState = {

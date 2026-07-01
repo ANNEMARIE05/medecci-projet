@@ -140,27 +140,8 @@ export const Accueil: React.FC = () => {
         .to('.hero-verset', { opacity: 1, x: 0, scale: 1, duration: 0.65, ease: 'back.out(1.5)' }, '-=0.6')
         .to('.hero-description', { opacity: 1, x: 0, duration: 0.7 }, '-=0.5')
         .to('.hero-buttons', { opacity: 1, x: 0, duration: 0.65 }, '-=0.55');
-
-    // Float animations on ambient backdrops
-    gsap.to('.lueur-bleu', {
-      x: 'random(-40, 40)',
-      y: 'random(-40, 40)',
-      scale: 'random(0.95, 1.25)',
-      duration: 7,
-      repeat: -1,
-      yoyo: true,
-      ease: 'sine.inOut'
-    });
-    gsap.to('.lueur-or', {
-      x: 'random(-45, 45)',
-      y: 'random(-45, 45)',
-      scale: 'random(0.9, 1.2)',
-      duration: 8.5,
-      repeat: -1,
-      yoyo: true,
-      ease: 'sine.inOut'
-    });
   }, [currentSlide]);
+
 
   const changerSlideAvecAnimation = (prochainIndex: number, direction: 'next' | 'prev' = 'next') => {
     // Determine exit direction
@@ -225,10 +206,10 @@ export const Accueil: React.FC = () => {
   ];
 
   return (
-    <div className="bg-[#F8FAFC] space-y-24 pb-20 overflow-x-hidden font-outfit">
+    <div className="bg-[#F8FAFC] space-y-12 sm:space-y-20 pb-12 sm:pb-20 overflow-x-hidden font-outfit">
       
       {/* 1. HERO BANNER SLIDER AVEC EFFET KEN BURNS */}
-      <section className="relative min-h-[85vh] md:min-h-[92vh] flex items-center justify-center bg-slate-950 text-white overflow-hidden py-16">
+      <section className="relative min-h-[75vh] md:min-h-[92vh] flex items-center justify-center bg-slate-950 text-white overflow-hidden py-12 md:py-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
@@ -253,8 +234,8 @@ export const Accueil: React.FC = () => {
         </AnimatePresence>
 
         {/* Lueurs d'ambiance colorées */}
-        <div className="absolute top-1/4 left-1/4 h-80 w-80 rounded-full bg-medecci-bleuRoyal/25 blur-3xl pointer-events-none lueur-bleu" />
-        <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-medecci-or/15 blur-3xl pointer-events-none lueur-or" />
+        <div className="absolute top-1/4 left-1/4 h-80 w-80 rounded-full bg-medecci-bleuRoyal/25 blur-3xl pointer-events-none glow-bleu" />
+        <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-medecci-or/15 blur-3xl pointer-events-none glow-or" />
 
         {/* Contenu textuel */}
         <div className="relative max-w-5xl mx-auto text-center px-4 sm:px-6 lg:px-8 space-y-8 z-10">
@@ -266,7 +247,7 @@ export const Accueil: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="font-cormorant italic font-bold text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-tight text-white tracking-tight hero-title opacity-0">
+            <h1 className="font-cormorant italic font-bold text-3xl sm:text-5xl md:text-7xl lg:text-8xl leading-tight text-white tracking-tight hero-title opacity-0">
               {slides[currentSlide].title.includes('Moi, je choisis') ? (
                 <>
                   Moi, je choisis la<br />
@@ -299,14 +280,14 @@ export const Accueil: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4 hero-buttons opacity-0">
               <Link
                 href={slides[currentSlide].btnLink}
-                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair hover:from-amber-500 hover:to-medecci-or text-slate-950 px-8 py-4 rounded-xl text-sm font-bold shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair hover:from-amber-500 hover:to-medecci-or text-slate-950 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm font-bold shadow-lg transition-colors duration-300"
               >
                 <span>{slides[currentSlide].btnText}</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/dons"
-                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 text-white border border-white/25 px-8 py-4 rounded-xl text-sm font-bold backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5"
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 text-white border border-white/25 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm font-bold backdrop-blur-sm transition-colors duration-300"
               >
                 <Heart className="h-4 w-4 text-medecci-or fill-medecci-or" />
                 <span>Soutenir la Mission</span>
@@ -354,7 +335,7 @@ export const Accueil: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="bg-white rounded-3xl border border-[#E2E8F0] shadow-premium p-8 sm:p-10 flex flex-col lg:flex-row items-center justify-between gap-8"
+          className="bg-white rounded-3xl border border-[#E2E8F0] shadow-premium p-5 sm:p-8 lg:p-10 flex flex-col lg:flex-row items-center justify-between gap-5 sm:gap-8"
         >
           {/* Label de l'événement */}
           <div className="space-y-4 text-center lg:text-left lg:max-w-md">
@@ -371,20 +352,20 @@ export const Accueil: React.FC = () => {
           </div>
 
           {/* Grille du Compte à Rebours */}
-          <div className="flex items-center justify-center gap-4 sm:gap-6">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 lg:gap-6">
             {[
-              { label: 'Jours', value: timeLeft.days },
-              { label: 'Heures', value: timeLeft.hours },
-              { label: 'Mins', value: timeLeft.minutes },
-              { label: 'Secs', value: timeLeft.seconds }
+              { label: 'J', value: timeLeft.days },
+              { label: 'H', value: timeLeft.hours },
+              { label: 'Min', value: timeLeft.minutes },
+              { label: 'Sec', value: timeLeft.seconds }
             ].map((item, i) => (
               <div key={i} className="flex flex-col items-center">
-                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shadow-sm">
-                  <span className="font-poppins font-bold text-2xl sm:text-4xl text-[#0B3C91]">
+                <div className="h-14 w-14 sm:h-20 sm:w-20 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shadow-sm">
+                  <span className="font-poppins font-bold text-xl sm:text-4xl text-[#0B3C91]">
                     {String(item.value).padStart(2, '0')}
                   </span>
                 </div>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+                <span className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1.5">
                   {item.label}
                 </span>
               </div>
@@ -439,7 +420,7 @@ export const Accueil: React.FC = () => {
 
       {/* 4. PRÉSENTATION FONDATRICE & HISTORIQUE */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           
           {/* Texte de gauche */}
           <motion.div
@@ -455,7 +436,7 @@ export const Accueil: React.FC = () => {
                 À Propos de la MEDECCI
               </span>
             </div>
-            <h2 className="font-poppins text-3xl sm:text-5xl font-black text-[#0B3C91] leading-tight">
+            <h2 className="font-poppins text-2xl sm:text-4xl lg:text-5xl font-black text-[#0B3C91] leading-tight">
               Bâtir des vies par la foi pure et l'évangélisation prophétique
             </h2>
             <p className="text-slate-655 leading-relaxed text-sm sm:text-base font-light">
@@ -489,7 +470,7 @@ export const Accueil: React.FC = () => {
               <img
                 src={getPhoto(19, 'https://images.unsplash.com/photo-1548625361-155deee223cb?auto=format&fit=crop&q=80&w=800')}
                 alt="Assemblée chrétienne MEDECCI"
-                className="w-full h-[450px] object-cover rounded-2xl hover:scale-102 transition-transform duration-700"
+                className="w-full h-[280px] sm:h-[380px] lg:h-[450px] object-cover rounded-2xl transition-transform duration-700"
               />
             </div>
           </motion.div>
@@ -497,8 +478,8 @@ export const Accueil: React.FC = () => {
       </section>
 
       {/* 5. CULTES DE LA SEMAINE & PROCHAINS RENDEZ-VOUS */}
-      <section className="bg-white border-y border-[#E2E8F0] py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+      <section className="bg-white border-y border-[#E2E8F0] py-12 sm:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-16">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <div className="inline-flex items-center space-x-2 bg-medecci-or/10 text-medecci-or px-3.5 py-1.5 rounded-full border border-medecci-or/10">
               <span className="h-1.5 w-1.5 rounded-full bg-medecci-or" />
@@ -506,7 +487,7 @@ export const Accueil: React.FC = () => {
                 Notre Calendrier
               </span>
             </div>
-            <h2 className="font-poppins text-3xl sm:text-5xl font-black text-[#0B3C91]">
+            <h2 className="font-poppins text-2xl sm:text-4xl lg:text-5xl font-black text-[#0B3C91]">
               Cultes & Événements à Venir
             </h2>
             <p className="text-slate-500 text-xs sm:text-sm font-light">
@@ -514,7 +495,7 @@ export const Accueil: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             
             {/* CULTES DE LA SEMAINE */}
             <motion.div
@@ -522,7 +503,7 @@ export const Accueil: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="bg-[#F8FAFC] rounded-3xl p-8 border border-[#E2E8F0] flex flex-col justify-between"
+              className="bg-[#F8FAFC] rounded-3xl p-5 sm:p-8 border border-[#E2E8F0] flex flex-col justify-between"
             >
               <div className="space-y-6">
                 <h3 className="font-poppins text-xl font-black text-[#0B3C91] border-b border-[#E2E8F0] pb-4">
@@ -609,7 +590,7 @@ export const Accueil: React.FC = () => {
       </section>
 
       {/* 6. SECTION LECTEUR DE SERMONS DU JOUR */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center space-x-2 bg-medecci-or/10 text-medecci-or px-3.5 py-1.5 rounded-full border border-medecci-or/10">
             <span className="h-1.5 w-1.5 rounded-full bg-medecci-or" />
@@ -617,7 +598,7 @@ export const Accueil: React.FC = () => {
               Enseignements récents
             </span>
           </div>
-          <h2 className="font-poppins text-3xl sm:text-5xl font-black text-[#0B3C91]">
+          <h2 className="font-poppins text-2xl sm:text-4xl lg:text-5xl font-black text-[#0B3C91]">
             Prédications à Écouter
           </h2>
           <p className="text-slate-500 text-xs sm:text-sm font-light">
@@ -625,7 +606,7 @@ export const Accueil: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {sermonsDuJour.map((sermon, i) => (
             <motion.div
               key={i}
@@ -677,7 +658,7 @@ export const Accueil: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="bg-white rounded-3xl p-8 sm:p-12 border border-[#E2E8F0] shadow-premium grid grid-cols-1 lg:grid-cols-2 gap-10 items-center"
+          className="bg-white rounded-3xl p-5 sm:p-8 lg:p-12 border border-[#E2E8F0] shadow-premium grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-center"
         >
           {/* Texte explicatif */}
           <div className="space-y-5">
@@ -685,7 +666,7 @@ export const Accueil: React.FC = () => {
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
               <span>Projet Construction 2026</span>
             </div>
-            <h3 className="font-poppins text-2xl sm:text-4xl font-black text-[#0B3C91] leading-tight">
+            <h3 className="font-poppins text-xl sm:text-3xl lg:text-4xl font-black text-[#0B3C91] leading-tight">
               Bâtissons Ensemble la Maison du Seigneur
             </h3>
             <p className="text-slate-655 text-xs sm:text-sm font-light leading-relaxed">
@@ -696,7 +677,7 @@ export const Accueil: React.FC = () => {
                 href="/dons"
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair text-white px-6 py-3.5 rounded-xl text-xs font-bold shadow-md hover:opacity-95 transition-opacity"
               >
-                <Heart className="h-4 w-4 fill-white animate-pulse" />
+                <Heart className="h-4 w-4 fill-white" />
                 <span>Participer au Projet</span>
               </Link>
             </div>
@@ -729,7 +710,7 @@ export const Accueil: React.FC = () => {
       </section>
 
       {/* 8. LATEST ARTICLES & BLOG */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
           <div className="space-y-3">
             <div className="inline-flex items-center space-x-2 bg-[#0B3C91]/10 text-[#0B3C91] px-3.5 py-1.5 rounded-full border border-[#0B3C91]/10">
@@ -738,7 +719,7 @@ export const Accueil: React.FC = () => {
                 Actualités & Annonces
               </span>
             </div>
-            <h2 className="font-poppins text-3xl sm:text-5xl font-black text-[#0B3C91]">
+            <h2 className="font-poppins text-2xl sm:text-4xl lg:text-5xl font-black text-[#0B3C91]">
               Nouvelles de notre Communauté
             </h2>
           </div>
@@ -751,7 +732,7 @@ export const Accueil: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {dernieresActus.map((actu, index) => (
             <motion.article
               key={actu.id}
@@ -802,7 +783,7 @@ export const Accueil: React.FC = () => {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="bg-gradient-to-r from-slate-950 via-[#0B3C91] to-slate-950 rounded-3xl p-8 sm:p-16 text-center text-white relative overflow-hidden shadow-premium"
+          className="bg-gradient-to-r from-slate-950 via-[#0B3C91] to-slate-950 rounded-3xl p-6 sm:p-10 lg:p-16 text-center text-white relative overflow-hidden shadow-premium"
         >
           {/* Vraie photo d'assemblée en fond */}
           <div 
@@ -810,7 +791,7 @@ export const Accueil: React.FC = () => {
             style={{ backgroundImage: `url('${getPhoto(5, '')}')` }}
           />
           <div className="relative max-w-3xl mx-auto space-y-6">
-            <h2 className="font-poppins text-3xl sm:text-5xl font-black leading-tight">
+            <h2 className="font-poppins text-2xl sm:text-4xl lg:text-5xl font-black leading-tight">
               Trouvez un Refuge Spirituel à la MEDECCI
             </h2>
             <p className="text-slate-300 text-sm sm:text-base font-light max-w-2xl mx-auto">
@@ -819,13 +800,13 @@ export const Accueil: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
               <Link
                 href="/contact"
-                className="bg-white text-[#0B3C91] hover:bg-slate-100 px-8 py-4 rounded-xl text-sm font-bold transition-all shadow-md hover:-translate-y-0.5"
+                className="bg-white text-[#0B3C91] hover:bg-slate-100 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm font-bold transition-colors shadow-md"
               >
                 Nous contacter
               </Link>
               <Link
                 href="/programmes"
-                className="bg-medecci-or text-slate-950 hover:bg-amber-400 px-8 py-4 rounded-xl text-sm font-bold transition-all shadow-md lueur-or hover:-translate-y-0.5"
+                className="bg-medecci-or text-slate-950 hover:bg-amber-400 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-sm font-bold transition-colors shadow-md"
               >
                 Horaires des cultes
               </Link>

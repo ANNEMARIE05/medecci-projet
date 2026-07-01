@@ -56,7 +56,7 @@ export const Suggestions: React.FC = () => {
     <div className="bg-[#F8FAFC] pb-20 space-y-16 font-outfit">
       
       {/* HEADER SECTION */}
-      <section className="relative bg-slate-950 text-white py-24 text-center overflow-hidden">
+      <section className="relative bg-slate-950 text-white py-14 sm:py-24 text-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-25"
           style={{
@@ -68,7 +68,7 @@ export const Suggestions: React.FC = () => {
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-medecci-or bg-white/10 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
             BOÎTE À SUGGESTIONS ECLESIASTIQUE
           </span>
-          <h1 className="font-cormorant italic font-bold text-4xl sm:text-7xl leading-tight tracking-tight">
+          <h1 className="font-cormorant italic font-bold text-3xl sm:text-6xl lg:text-7xl leading-tight tracking-tight">
             Suggestions & Avis
           </h1>
           <p className="text-slate-350 text-sm sm:text-base max-w-xl mx-auto font-light leading-relaxed">
