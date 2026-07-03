@@ -1,437 +1,672 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDonneesStore } from '../../stores/useDonneesStore';
-import { Plus, Edit2, Trash2, Check, Tags, ShieldAlert } from 'lucide-react';
+import { useHabilitationsStore, Action, Menu } from '../../stores/useHabilitationsStore';
+import { useAuthStore } from '../../stores/useAuthStore';
+import {
+  Plus, Edit2, Trash2, Check, Tags, ShieldAlert,
+  Zap, LayoutGrid, X, ChevronDown, ChevronUp, Search
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import PaginationFooter from '../../components/UI/PaginationFooter';
 
 export const Parametrage: React.FC = () => {
   const store = useDonneesStore();
+  const habStore = useHabilitationsStore();
   const { categories, statuts } = store;
+  const { actions, menus } = habStore;
+  const { utilisateur } = useAuthStore();
 
-  // Gestion des onglets
-  const [ongletActif, setOngletActif] = useState<'categories' | 'statuts'>('categories');
+  type OngletType = 'categories' | 'statuts' | 'actions' | 'menus';
+  const [ongletActif, setOngletActif] = useState<OngletType>('categories');
 
-  // États locaux de gestion des catégories
-  const [nouvelleCategorie, setNouvelleCategorie] = useState('');
-  const [catEnModification, setCatEnModification] = useState<string | null>(null);
-  const [nomCatModifie, setNomCatModifie] = useState('');
+  // États de filtrage, pagination et loaders
+  const [recherche, setRecherche] = useState('');
+  const [page, setPage] = useState(1);
+  const [taillePage, setTaillePage] = useState(8);
+  const [enChargement, setEnChargement] = useState(false);
 
-  // États locaux de gestion des statuts
-  const [nouveauStatut, setNouveauStatut] = useState('');
-  const [statutEnModification, setStatutEnModification] = useState<string | null>(null);
-  const [nomStatutModifie, setNomStatutModifie] = useState('');
+  // Modale d'édition / création unique
+  const [modaleOuverte, setModaleOuverte] = useState(false);
+  const [elementEnModification, setElementEnModification] = useState<any | null>(null);
 
-  // États d'alertes partagés
-  const [errorText, setErrorText] = useState('');
-  const [successText, setSuccessText] = useState('');
+  // Formulaires selon l'onglet
+  const [formCat, setFormCat] = useState('');
+  const [formStatut, setFormStatut] = useState('');
+  const [formAction, setFormAction] = useState({ code: '', libelle: '', description: '' });
+  const [formMenu, setFormMenu] = useState({ code: '', libelle: '', chemin: '', icone: '' });
 
-  // Action : Ajouter catégorie
-  const gererAjoutCat = (e: React.FormEvent) => {
+  // Accordion pour l'onglet menus
+  const [menuExpand, setMenuExpand] = useState<string | null>(null);
+
+  // Alertes
+  const [erreur, setErreur] = useState('');
+  const [succes, setSucces] = useState('');
+
+  const flash = (ok: boolean, msg: string) => {
+    ok ? setSucces(msg) : setErreur(msg);
+    ok ? setErreur('') : setSucces('');
+    setTimeout(() => { setSucces(''); setErreur(''); }, 3000);
+  };
+
+  // Reset pagination et loader au changement d'onglet
+  useEffect(() => {
+    setRecherche('');
+    setPage(1);
+    setEnChargement(true);
+    const timer = setTimeout(() => setEnChargement(false), 400);
+    return () => clearTimeout(timer);
+  }, [ongletActif]);
+
+  // Loader lors de la recherche
+  useEffect(() => {
+    setEnChargement(true);
+    const timer = setTimeout(() => setEnChargement(false), 300);
+    return () => clearTimeout(timer);
+  }, [recherche]);
+
+  const reinitialiserFormulaire = () => {
+    setElementEnModification(null);
+    setFormCat('');
+    setFormStatut('');
+    setFormAction({ code: '', libelle: '', description: '' });
+    setFormMenu({ code: '', libelle: '', chemin: '', icone: '' });
+    setModaleOuverte(false);
+  };
+
+  const ouvrirAjout = () => {
+    setElementEnModification(null);
+    setFormCat('');
+    setFormStatut('');
+    setFormAction({ code: '', libelle: '', description: '' });
+    setFormMenu({ code: '', libelle: '', chemin: '', icone: '' });
+    setModaleOuverte(true);
+  };
+
+  const ouvrirModification = (el: any) => {
+    setElementEnModification(el);
+    if (ongletActif === 'categories') {
+      setFormCat(el);
+    } else if (ongletActif === 'statuts') {
+      setFormStatut(el);
+    } else if (ongletActif === 'actions') {
+      setFormAction({ code: el.code, libelle: el.libelle, description: el.description || '' });
+    } else if (ongletActif === 'menus') {
+      setFormMenu({ code: el.code, libelle: el.libelle, chemin: el.chemin || '', icone: el.icone || '' });
+    }
+    setModaleOuverte(true);
+  };
+
+  const handleValiderFormulaire = (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorText('');
-    setSuccessText('');
+    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
 
-    const nomClean = nouvelleCategorie.trim();
-    if (!nomClean) {
-      setErrorText('Le nom de la catégorie ne peut pas être vide.');
-      return;
-    }
-
-    const res = store.ajouterCategorie(nomClean);
-    if (res.success) {
-      setSuccessText(`La catégorie "${nomClean}" a été ajoutée.`);
-      setNouvelleCategorie('');
-      setTimeout(() => setSuccessText(''), 2000);
-    } else {
-      setErrorText(res.error || 'Erreur lors de l\'ajout.');
-    }
-  };
-
-  // Action : Modifier catégorie
-  const gererModificationCat = (ancienneCat: string) => {
-    setErrorText('');
-    setSuccessText('');
-
-    const nomClean = nomCatModifie.trim();
-    if (!nomClean) {
-      setErrorText('Le nom modifié ne peut pas être vide.');
-      return;
-    }
-
-    const res = store.modifierCategorie(ancienneCat, nomClean);
-    if (res.success) {
-      setSuccessText(`La catégorie a été renommée en "${nomClean}".`);
-      setCatEnModification(null);
-      setNomCatModifie('');
-      setTimeout(() => setSuccessText(''), 2000);
-    } else {
-      setErrorText(res.error || 'Erreur de modification.');
-    }
-  };
-
-  // Action : Supprimer catégorie
-  const gererSuppressionCat = (cat: string) => {
-    setErrorText('');
-    setSuccessText('');
-
-    if (window.confirm(`Voulez-vous vraiment supprimer la catégorie "${cat}" ?`)) {
-      const res = store.supprimerCategorie(cat);
-      if (res.success) {
-        setSuccessText(`La catégorie "${cat}" a été supprimée.`);
-        setTimeout(() => setSuccessText(''), 2000);
+    if (ongletActif === 'categories') {
+      const nomClean = formCat.trim();
+      if (!nomClean) return flash(false, 'Le nom ne peut pas être vide.');
+      if (elementEnModification) {
+        const res = store.modifierCategorie(elementEnModification, nomClean);
+        if (res.success) {
+          habStore.ajouterTrace(userEmail, 'MODIFICATION', 'Catégorie', `Modification de la catégorie financière "${elementEnModification}" -> "${nomClean}".`);
+          flash(true, 'Catégorie renommée avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
       } else {
-        setErrorText(res.error || 'Erreur de suppression.');
+        const res = store.ajouterCategorie(nomClean);
+        if (res.success) {
+          habStore.ajouterTrace(userEmail, 'CRÉATION', 'Catégorie', `Création de la catégorie financière "${nomClean}".`);
+          flash(true, 'Catégorie ajoutée avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
+      }
+    }
+
+    else if (ongletActif === 'statuts') {
+      const nomClean = formStatut.trim();
+      if (!nomClean) return flash(false, 'Le nom ne peut pas être vide.');
+      if (elementEnModification) {
+        const res = store.modifierStatut(elementEnModification, nomClean);
+        if (res.success) {
+          habStore.ajouterTrace(userEmail, 'MODIFICATION', 'Statut', `Modification du statut de fidèle "${elementEnModification}" -> "${nomClean}".`);
+          flash(true, 'Statut renommé avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
+      } else {
+        const res = store.ajouterStatut(nomClean);
+        if (res.success) {
+          habStore.ajouterTrace(userEmail, 'CRÉATION', 'Statut', `Création du statut de fidèle "${nomClean}".`);
+          flash(true, 'Statut ajouté avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
+      }
+    }
+
+    else if (ongletActif === 'actions') {
+      if (elementEnModification) {
+        const res = habStore.modifierAction(elementEnModification.id, formAction, userEmail);
+        if (res.success) {
+          flash(true, 'Action mise à jour avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
+      } else {
+        const res = habStore.ajouterAction(formAction, userEmail);
+        if (res.success) {
+          flash(true, 'Action créée avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
+      }
+    }
+
+    else if (ongletActif === 'menus') {
+      if (elementEnModification) {
+        const res = habStore.modifierMenu(elementEnModification.id, formMenu, userEmail);
+        if (res.success) {
+          flash(true, 'Menu mis à jour avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
+      } else {
+        const res = habStore.ajouterMenu(formMenu, userEmail);
+        if (res.success) {
+          flash(true, 'Menu créé avec succès.');
+          reinitialiserFormulaire();
+        } else flash(false, res.error || 'Erreur.');
       }
     }
   };
 
-  // Action : Ajouter statut
-  const gererAjoutStatut = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorText('');
-    setSuccessText('');
+  const handleSupprimer = (el: any) => {
+    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
 
-    const nomClean = nouveauStatut.trim();
-    if (!nomClean) {
-      setErrorText('Le nom du statut ne peut pas être vide.');
-      return;
+    if (ongletActif === 'categories') {
+      if (window.confirm(`Supprimer la catégorie "${el}" ?`)) {
+        const res = store.supprimerCategorie(el);
+        if (res.success) {
+          habStore.ajouterTrace(userEmail, 'SUPPRESSION', 'Catégorie', `Suppression de la catégorie financière "${el}".`);
+          flash(true, 'Catégorie supprimée.');
+        } else flash(false, res.error || 'Erreur.');
+      }
     }
 
-    const res = store.ajouterStatut(nomClean);
-    if (res.success) {
-      setSuccessText(`Le statut "${nomClean}" a été ajouté.`);
-      setNouveauStatut('');
-      setTimeout(() => setSuccessText(''), 2000);
-    } else {
-      setErrorText(res.error || 'Erreur lors de l\'ajout.');
-    }
-  };
-
-  // Action : Modifier statut
-  const gererModificationStatut = (ancienStatut: string) => {
-    setErrorText('');
-    setSuccessText('');
-
-    const nomClean = nomStatutModifie.trim();
-    if (!nomClean) {
-      setErrorText('Le nom modifié ne peut pas être vide.');
-      return;
+    else if (ongletActif === 'statuts') {
+      if (window.confirm(`Supprimer le statut "${el}" ?`)) {
+        const res = store.supprimerStatut(el);
+        if (res.success) {
+          habStore.ajouterTrace(userEmail, 'SUPPRESSION', 'Statut', `Suppression du statut de fidèle "${el}".`);
+          flash(true, 'Statut supprimé.');
+        } else flash(false, res.error || 'Erreur.');
+      }
     }
 
-    const res = store.modifierStatut(ancienStatut, nomClean);
-    if (res.success) {
-      setSuccessText(`Le statut a été renommé en "${nomClean}".`);
-      setStatutEnModification(null);
-      setNomStatutModifie('');
-      setTimeout(() => setSuccessText(''), 2000);
-    } else {
-      setErrorText(res.error || 'Erreur de modification.');
+    else if (ongletActif === 'actions') {
+      if (window.confirm(`Supprimer l'action "${el.libelle}" ?`)) {
+        const res = habStore.supprimerAction(el.id, userEmail);
+        if (res.success) flash(true, 'Action supprimée.');
+        else flash(false, res.error || 'Erreur.');
+      }
     }
-  };
 
-  // Action : Supprimer statut
-  const gererSuppressionStatut = (statut: string) => {
-    setErrorText('');
-    setSuccessText('');
-
-    if (window.confirm(`Voulez-vous vraiment supprimer le statut "${statut}" ?\nLes membres ayant ce statut seront réaffectés par défaut.`)) {
-      const res = store.supprimerStatut(statut);
-      if (res.success) {
-        setSuccessText(`Le statut "${statut}" a été supprimé.`);
-        setTimeout(() => setSuccessText(''), 2000);
-      } else {
-        setErrorText(res.error || 'Erreur de suppression.');
+    else if (ongletActif === 'menus') {
+      if (window.confirm(`Supprimer le menu "${el.libelle}" ?`)) {
+        const res = habStore.supprimerMenu(el.id, userEmail);
+        if (res.success) flash(true, 'Menu supprimé.');
+        else flash(false, res.error || 'Erreur.');
       }
     }
   };
+
+  const toggleActionMenu = (menuId: string, actionId: string) => {
+    const menu = menus.find(m => m.id === menuId);
+    if (!menu) return;
+    const current = menu.actionsDisponibles;
+    const updated = current.includes(actionId)
+      ? current.filter(id => id !== actionId)
+      : [...current, actionId];
+    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
+    const res = habStore.assignerActionsMenu(menuId, updated, userEmail);
+    if (!res.success) flash(false, res.error || 'Erreur.');
+  };
+
+  // Filtrage selon l'onglet
+  let donneesFiltrees: any[] = [];
+  if (ongletActif === 'categories') {
+    donneesFiltrees = categories.filter(c => c.toLowerCase().includes(recherche.toLowerCase()));
+  } else if (ongletActif === 'statuts') {
+    donneesFiltrees = statuts.filter(s => s.toLowerCase().includes(recherche.toLowerCase()));
+  } else if (ongletActif === 'actions') {
+    donneesFiltrees = actions.filter(a =>
+      a.libelle.toLowerCase().includes(recherche.toLowerCase()) ||
+      a.code.toLowerCase().includes(recherche.toLowerCase())
+    );
+  } else if (ongletActif === 'menus') {
+    donneesFiltrees = menus.filter(m =>
+      m.libelle.toLowerCase().includes(recherche.toLowerCase()) ||
+      m.code.toLowerCase().includes(recherche.toLowerCase())
+    );
+  }
+
+  // Pagination
+  const totalItems = donneesFiltrees.length;
+  const totalPages = Math.ceil(totalItems / taillePage) || 1;
+  const indexDernier = page * taillePage;
+  const indexPremier = indexDernier - taillePage;
+  const itemsPaginees = donneesFiltrees.slice(indexPremier, indexDernier);
+
+  const onglets: { key: OngletType; label: string; icon: React.ReactNode }[] = [
+    { key: 'categories', label: 'Catégories Financières', icon: <Tags className="h-4 w-4" /> },
+    { key: 'statuts',    label: 'Statuts des Membres',    icon: <ShieldAlert className="h-4 w-4" /> },
+    { key: 'actions',    label: 'Actions Habilitations',  icon: <Zap className="h-4 w-4" /> },
+    { key: 'menus',      label: 'Menus & Permissions',    icon: <LayoutGrid className="h-4 w-4" /> },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Barre d'onglets premium */}
-      <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
-        <button
-          onClick={() => {
-            setOngletActif('categories');
-            setErrorText('');
-            setSuccessText('');
-          }}
-          className={ongletActif === 'categories' ? 'btn-prim' : 'btn-sec'}
-          style={{ 
-            padding: '8px 18px', 
-            borderRadius: '8px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            fontWeight: 600
-          }}
-        >
-          <Tags className="h-4 w-4" />
-          <span>Catégories Financières</span>
-        </button>
-        <button
-          onClick={() => {
-            setOngletActif('statuts');
-            setErrorText('');
-            setSuccessText('');
-          }}
-          className={ongletActif === 'statuts' ? 'btn-prim' : 'btn-sec'}
-          style={{ 
-            padding: '8px 18px', 
-            borderRadius: '8px', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            fontWeight: 600
-          }}
-        >
-          <ShieldAlert className="h-4 w-4" />
-          <span>Statuts des Membres</span>
-        </button>
+      {/* Sélecteur d'onglets premium */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px', flexWrap: 'wrap' }}>
+        {onglets.map(o => (
+          <button
+            key={o.key}
+            onClick={() => setOngletActif(o.key)}
+            className={ongletActif === o.key ? 'btn-prim' : 'btn-sec'}
+            style={{ padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: 600, fontSize: '13px' }}
+          >
+            {o.icon}
+            <span>{o.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* ZONE : ONGLETS */}
-      {ongletActif === 'categories' ? (
-        <div className="dtl-grid" style={{ gridTemplateColumns: '0.8fr 1.2fr', gap: '20px' }}>
-          {/* Formulaire ajout catégorie */}
-          <div className="frm-card" style={{ height: 'fit-content' }}>
-            <div className="frm-section">Nouvelle Catégorie</div>
+      {erreur && <div className="frm-alert err">{erreur}</div>}
+      {succes && <div className="frm-alert ok">{succes}</div>}
 
-            {errorText && <div className="frm-alert err">{errorText}</div>}
-            {successText && <div className="frm-alert ok">{successText}</div>}
-
-            <form onSubmit={gererAjoutCat} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="frm-grp">
-                <label className="frm-lbl">Nom de la catégorie *</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Projet Spécial, Mission, Dîme..."
-                  value={nouvelleCategorie}
-                  onChange={(e) => setNouvelleCategorie(e.target.value)}
-                  className="frm-inp"
-                  required
-                />
-              </div>
-
-              <button type="submit" className="btn-prim" style={{ justifyContent: 'center' }}>
-                <Plus className="h-4 w-4" />
-                <span>Ajouter la catégorie</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Liste catégories */}
-          <div className="tbl-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div className="frm-section">Catégories Enregistrées</div>
-
-            <div className="tbl-scroll">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th style={{ width: '44px' }}>#</th>
-                    <th>Nom de la catégorie</th>
-                    <th style={{ textAlign: 'right', width: '120px' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="empty-td">
-                        Aucune catégorie paramétrée.
-                      </td>
-                    </tr>
-                  ) : (
-                    categories.map((cat, idx) => (
-                      <tr key={cat}>
-                        <td className="col-num">{idx + 1}</td>
-                        <td>
-                          {catEnModification === cat ? (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <input
-                                type="text"
-                                value={nomCatModifie}
-                                onChange={(e) => setNomCatModifie(e.target.value)}
-                                className="frm-inp"
-                                style={{ height: '32px', padding: '4px 10px' }}
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => gererModificationCat(cat)}
-                                className="btn-prim"
-                                style={{ padding: '4px 8px', borderRadius: '5px' }}
-                                title="Valider"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="fw700">{cat}</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          {catEnModification === cat ? (
-                            <button
-                              onClick={() => {
-                                setCatEnModification(null);
-                                setNomCatModifie('');
-                              }}
-                              className="btn-sec"
-                              style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px' }}
-                            >
-                              Annuler
-                            </button>
-                          ) : (
-                            <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
-                              <button
-                                onClick={() => {
-                                  setCatEnModification(cat);
-                                  setNomCatModifie(cat);
-                                }}
-                                className="btn-edit"
-                                title="Modifier"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => gererSuppressionCat(cat)}
-                                className="btn-del"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+      {/* Barre de Recherche et Filtres */}
+      <div className="flt-bar" style={{ background: 'var(--color-bg-card)', borderRadius: 'var(--radius-md)', padding: '16px 20px', boxShadow: 'var(--shadow-sm)' }}>
+        <div className="flt-left">
+          <div className="s-wrap">
+            <Search className="s-ico h-4.5 w-4.5" />
+            <input
+              type="text"
+              placeholder={`Rechercher dans ${onglets.find(o => o.key === ongletActif)?.label}...`}
+              value={recherche}
+              onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
+            />
           </div>
         </div>
-      ) : (
-        <div className="dtl-grid" style={{ gridTemplateColumns: '0.8fr 1.2fr', gap: '20px' }}>
-          {/* Formulaire ajout statut */}
-          <div className="frm-card" style={{ height: 'fit-content' }}>
-            <div className="frm-section">Nouveau Statut de Membre</div>
+        <div className="flt-right">
+          <button onClick={ouvrirAjout} className="btn-prim">
+            <Plus className="h-4 w-4" />
+            <span>Nouveau</span>
+          </button>
+        </div>
+      </div>
 
-            {errorText && <div className="frm-alert err">{errorText}</div>}
-            {successText && <div className="frm-alert ok">{successText}</div>}
-
-            <form onSubmit={gererAjoutStatut} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="frm-grp">
-                <label className="frm-lbl">Nom du statut *</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Ancien d'église, Membre d'honneur..."
-                  value={nouveauStatut}
-                  onChange={(e) => setNouveauStatut(e.target.value)}
-                  className="frm-inp"
-                  required
-                />
-              </div>
-
-              <button type="submit" className="btn-prim" style={{ justifyContent: 'center' }}>
-                <Plus className="h-4 w-4" />
-                <span>Ajouter le statut</span>
-              </button>
-            </form>
+      {/* Liste en Grand */}
+      <div className="tbl-card">
+        {enChargement ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B4F8A]" />
           </div>
-
-          {/* Liste statuts */}
-          <div className="tbl-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div className="frm-section">Statuts Enregistrés</div>
-
+        ) : (
+          <>
             <div className="tbl-scroll">
               <table className="tbl">
-                <thead>
-                  <tr>
-                    <th style={{ width: '44px' }}>#</th>
-                    <th>Nom du statut</th>
-                    <th style={{ textAlign: 'right', width: '120px' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {statuts.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="empty-td">
-                        Aucun statut paramétré.
-                      </td>
-                    </tr>
-                  ) : (
-                    statuts.map((st, idx) => (
-                      <tr key={st}>
-                        <td className="col-num">{idx + 1}</td>
-                        <td>
-                          {statutEnModification === st ? (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <input
-                                type="text"
-                                value={nomStatutModifie}
-                                onChange={(e) => setNomStatutModifie(e.target.value)}
-                                className="frm-inp"
-                                style={{ height: '32px', padding: '4px 10px' }}
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => gererModificationStatut(st)}
-                                className="btn-prim"
-                                style={{ padding: '4px 8px', borderRadius: '5px' }}
-                                title="Valider"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="fw700">{st}</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          {statutEnModification === st ? (
-                            <button
-                              onClick={() => {
-                                setStatutEnModification(null);
-                                setNomStatutModifie('');
-                              }}
-                              className="btn-sec"
-                              style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px' }}
-                            >
-                              Annuler
-                            </button>
-                          ) : (
-                            <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
-                              <button
-                                onClick={() => {
-                                  setStatutEnModification(st);
-                                  setNomStatutModifie(st);
-                                }}
-                                className="btn-edit"
-                                title="Modifier"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => gererSuppressionStatut(st)}
-                                className="btn-del"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </td>
+                {ongletActif === 'categories' && (
+                  <>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '44px' }}>#</th>
+                        <th>Nom de la Catégorie Financière</th>
+                        <th style={{ textAlign: 'right', width: '120px' }}>Actions</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
+                    </thead>
+                    <tbody>
+                      {itemsPaginees.length === 0 ? (
+                        <tr><td colSpan={3} className="empty-td">Aucune catégorie.</td></tr>
+                      ) : (
+                        itemsPaginees.map((cat, idx) => (
+                          <tr key={cat}>
+                            <td className="col-num">{indexPremier + idx + 1}</td>
+                            <td><span className="fw700">{cat}</span></td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
+                                <button onClick={() => ouvrirModification(cat)} className="btn-edit" title="Modifier"><Edit2 className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => handleSupprimer(cat)} className="btn-del" title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </>
+                )}
+
+                {ongletActif === 'statuts' && (
+                  <>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '44px' }}>#</th>
+                        <th>Statut de Fidèle</th>
+                        <th style={{ textAlign: 'right', width: '120px' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemsPaginees.length === 0 ? (
+                        <tr><td colSpan={3} className="empty-td">Aucun statut.</td></tr>
+                      ) : (
+                        itemsPaginees.map((st, idx) => (
+                          <tr key={st}>
+                            <td className="col-num">{indexPremier + idx + 1}</td>
+                            <td><span className="fw700">{st}</span></td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
+                                <button onClick={() => ouvrirModification(st)} className="btn-edit" title="Modifier"><Edit2 className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => handleSupprimer(st)} className="btn-del" title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </>
+                )}
+
+                {ongletActif === 'actions' && (
+                  <>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '44px' }}>#</th>
+                        <th>Code Action</th>
+                        <th>Libellé</th>
+                        <th>Description</th>
+                        <th style={{ textAlign: 'right', width: '120px' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemsPaginees.length === 0 ? (
+                        <tr><td colSpan={5} className="empty-td">Aucune action.</td></tr>
+                      ) : (
+                        itemsPaginees.map((act: Action, idx) => (
+                          <tr key={act.id}>
+                            <td className="col-num">{indexPremier + idx + 1}</td>
+                            <td><span className="badge badge-partial" style={{ fontFamily: 'monospace' }}>{act.code}</span></td>
+                            <td><span className="fw700">{act.libelle}</span></td>
+                            <td style={{ fontSize: '12px', color: 'var(--color-dark-muted)' }}>{act.description}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
+                                <button onClick={() => ouvrirModification(act)} className="btn-edit" title="Modifier"><Edit2 className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => handleSupprimer(act)} className="btn-del" title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </>
+                )}
+
+                {ongletActif === 'menus' && (
+                  <>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '44px' }}>#</th>
+                        <th>Code Menu</th>
+                        <th>Libellé</th>
+                        <th>Chemin URL</th>
+                        <th>Permissions Liées</th>
+                        <th style={{ textAlign: 'right', width: '160px' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemsPaginees.length === 0 ? (
+                        <tr><td colSpan={6} className="empty-td">Aucun menu.</td></tr>
+                      ) : (
+                        itemsPaginees.map((m: Menu, idx) => {
+                          const isExpanded = menuExpand === m.id;
+                          return (
+                            <React.Fragment key={m.id}>
+                              <tr>
+                                <td className="col-num">{indexPremier + idx + 1}</td>
+                                <td><span className="badge badge-partial" style={{ fontFamily: 'monospace' }}>{m.code}</span></td>
+                                <td><span className="fw700">{m.libelle}</span></td>
+                                <td style={{ fontSize: '12px', color: 'var(--color-dark-muted)', fontFamily: 'monospace' }}>{m.chemin}</td>
+                                <td>
+                                  <span className="badge badge-partial">
+                                    {m.actionsDisponibles.length} action(s)
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                    <button
+                                      onClick={() => setMenuExpand(isExpanded ? null : m.id)}
+                                      className="btn-sec"
+                                      style={{ padding: '5px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                      <span>Droits</span>
+                                    </button>
+                                    <button onClick={() => ouvrirModification(m)} className="btn-edit" title="Modifier"><Edit2 className="h-3.5 w-3.5" /></button>
+                                    <button onClick={() => handleSupprimer(m)} className="btn-del" title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={6} style={{ padding: '12px 20px', background: 'rgba(11,60,145,0.02)', borderBottom: '1.5px solid var(--color-primary)' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                      <span style={{ fontSize: '11px', fontWeight: '750', color: 'var(--color-primary)', textTransform: 'uppercase' }}>
+                                        Configurer les actions valides sur le menu "{m.libelle}" :
+                                      </span>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {actions.map(act => {
+                                          const checked = m.actionsDisponibles.includes(act.id);
+                                          return (
+                                            <label
+                                              key={act.id}
+                                              style={{
+                                                display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                                                padding: '4px 10px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '600',
+                                                border: `1.5px solid ${checked ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                                background: checked ? 'var(--color-primary-light)' : 'white',
+                                                color: checked ? 'var(--color-primary)' : 'var(--color-dark-muted)',
+                                                transition: 'all 0.15s ease',
+                                                userSelect: 'none',
+                                              }}
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => toggleActionMenu(m.id, act.id)}
+                                                style={{ width: '13px', height: '13px', accentColor: 'var(--color-primary)' }}
+                                              />
+                                              <span>{act.libelle}</span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </>
+                )}
               </table>
             </div>
+
+            {/* Footer de Pagination */}
+            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--color-border)' }}>
+              <PaginationFooter
+                total={totalItems}
+                page={page}
+                pageSize={taillePage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                onPageSizeChange={setTaillePage}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* MODALE D'AJOUT / MODIFICATION D'ÉLÉMENT */}
+      <AnimatePresence>
+        {modaleOuverte && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-primary)' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: 'white', margin: 0 }}>
+                  {elementEnModification ? 'Modifier la configuration' : 'Ajouter une configuration'}
+                </h3>
+                <button
+                  onClick={reinitialiserFormulaire}
+                  style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer' }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleValiderFormulaire}>
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {ongletActif === 'categories' && (
+                    <div className="frm-grp">
+                      <label className="frm-lbl">Nom de la Catégorie Financière *</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Projet Spécial, Dîme..."
+                        value={formCat}
+                        onChange={e => setFormCat(e.target.value)}
+                        className="frm-inp"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {ongletActif === 'statuts' && (
+                    <div className="frm-grp">
+                      <label className="frm-lbl">Nom du Statut de Fidèle *</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Pasteur, Membre d'honneur..."
+                        value={formStatut}
+                        onChange={e => setFormStatut(e.target.value)}
+                        className="frm-inp"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {ongletActif === 'actions' && (
+                    <>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Code (majuscules) *</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: IMPRIMER"
+                          value={formAction.code}
+                          onChange={e => setFormAction(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                          className="frm-inp"
+                          required
+                          disabled={!!elementEnModification}
+                        />
+                      </div>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Libellé *</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Imprimer"
+                          value={formAction.libelle}
+                          onChange={e => setFormAction(f => ({ ...f, libelle: e.target.value }))}
+                          className="frm-inp"
+                          required
+                        />
+                      </div>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Description</label>
+                        <input
+                          type="text"
+                          placeholder="Description succincte..."
+                          value={formAction.description}
+                          onChange={e => setFormAction(f => ({ ...f, description: e.target.value }))}
+                          className="frm-inp"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {ongletActif === 'menus' && (
+                    <>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Code Menu (majuscules) *</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: RAPPORTS"
+                          value={formMenu.code}
+                          onChange={e => setFormMenu(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                          className="frm-inp"
+                          required
+                          disabled={!!elementEnModification}
+                        />
+                      </div>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Libellé *</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Rapports"
+                          value={formMenu.libelle}
+                          onChange={e => setFormMenu(f => ({ ...f, libelle: e.target.value }))}
+                          className="frm-inp"
+                          required
+                        />
+                      </div>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Chemin (URL du dashboard)</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: /admin/rapports"
+                          value={formMenu.chemin}
+                          onChange={e => setFormMenu(f => ({ ...f, chemin: e.target.value }))}
+                          className="frm-inp"
+                        />
+                      </div>
+                      <div className="frm-grp">
+                        <label className="frm-lbl">Icône (Nom Lucide)</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: FileText"
+                          value={formMenu.icone}
+                          onChange={e => setFormMenu(f => ({ ...f, icone: e.target.value }))}
+                          className="frm-inp"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#F8FAFC' }}>
+                  <button type="button" className="btn-sec" onClick={reinitialiserFormulaire}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn-prim">
+                    <Check className="h-4 w-4" />
+                    <span>Enregistrer</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

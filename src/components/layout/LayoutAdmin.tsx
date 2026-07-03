@@ -20,7 +20,9 @@ import {
   Sliders,
   Heart,
   BookOpen,
-  Inbox
+  Inbox,
+  ShieldCheck,
+  UserCog
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useDonneesStore } from '../../stores/useDonneesStore';
@@ -49,7 +51,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
     { chemin: '/admin/membres', libelle: 'Fidèles Cotisants', icone: Users, roles: ['ADMIN', 'TRESORIER'] },
     { chemin: '/admin/archives', libelle: 'Archives Caisses', icone: Trash2, roles: ['ADMIN', 'TRESORIER'] },
     { chemin: '/admin/historique', libelle: 'Historique Global', icone: History, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/parametrage', libelle: 'Paramétrage Catégories', icone: Sliders, roles: ['ADMIN', 'TRESORIER'] },
+    { chemin: '/admin/parametrage', libelle: 'Paramétrages', icone: Sliders, roles: ['ADMIN', 'TRESORIER'] },
     { chemin: '/admin/dons', libelle: 'Dons en Ligne', icone: Heart, roles: ['ADMIN', 'TRESORIER'] },
     { chemin: '/admin/meditations', libelle: 'Méditations', icone: BookOpen, roles: ['ADMIN', 'PASTEUR'] },
     { chemin: '/admin/suggestions', libelle: 'Suggestions', icone: Inbox, roles: ['ADMIN', 'PASTEUR'] },
@@ -57,7 +59,9 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
     { chemin: '/admin/sermons', libelle: 'Sermons', icone: Mic, roles: ['ADMIN', 'PASTEUR'] },
     { chemin: '/admin/evenements', libelle: 'Événements', icone: Calendar, roles: ['ADMIN', 'PASTEUR'] },
     { chemin: '/admin/prieres', libelle: 'Demandes de Prière', icone: HeartHandshake, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/parametres', libelle: 'Paramètres Généraux', icone: Settings, roles: ['ADMIN', 'PASTEUR'] },
+    { chemin: '/admin/profils', libelle: 'Profils & Habilitations', icone: ShieldCheck, roles: ['ADMIN'] },
+    { chemin: '/admin/utilisateurs-dashboard', libelle: 'Utilisateurs Dashboard', icone: UserCog, roles: ['ADMIN'] },
+    { chemin: '/admin/parametres', libelle: 'Mon Profil', icone: Settings, roles: ['ADMIN', 'PASTEUR', 'TRESORIER'] },
   ];
 
   const roleUtilisateur = utilisateur?.role || 'PASTEUR';

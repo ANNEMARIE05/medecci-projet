@@ -1,27 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { useDonneesStore } from '../../stores/useDonneesStore';
+import { useHabilitationsStore, AuditTrace } from '../../stores/useHabilitationsStore';
 import { formaterDevise, formaterDate } from '../../utils/formateur';
 import PaginationFooter from '../../components/UI/PaginationFooter';
-import { Search, User, Edit2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Search, User, Edit2, History, ShieldAlert, FileText, Check, Shield, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Historique: React.FC = () => {
   const store = useDonneesStore();
+  const habStore = useHabilitationsStore();
   const { caisses, membres, transactions } = store;
-  const router = useRouter();
+  const { tracesAudit } = habStore;
 
-  // États locaux de filtrage et de pagination
+  // Gestion des onglets
+  const [ongletActif, setOngletActif] = useState<'versements' | 'audit'>('versements');
+
+  // États locaux de filtrage, pagination et loaders
   const [recherche, setRecherche] = useState('');
   const [filtreCaisse, setFiltreCaisse] = useState('');
   const [page, setPage] = useState(1);
   const [taillePage, setTaillePage] = useState(10);
+  const [enChargement, setEnChargement] = useState(false);
 
-  // États pour correction versement (traçabilité)
+  // Correction versement (traçabilité)
   const [txAModifier, setTxAModifier] = useState<any>(null);
   const [nouveauMontantModif, setNouveauMontantModif] = useState('');
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
+
+  // Reset pagination et simulation loader
+  useEffect(() => {
+    setRecherche('');
+    setPage(1);
+    setEnChargement(true);
+    const timer = setTimeout(() => setEnChargement(false), 450);
+    return () => clearTimeout(timer);
+  }, [ongletActif]);
+
+  // Loader lors de la recherche
+  useEffect(() => {
+    setEnChargement(true);
+    const timer = setTimeout(() => setEnChargement(false), 300);
+    return () => clearTimeout(timer);
+  }, [recherche, filtreCaisse]);
 
   const obtenirNomMembre = (idMembre: string) => {
     const m = membres.find((x) => x.id === idMembre);
@@ -41,18 +62,32 @@ export const Historique: React.FC = () => {
     return matchRecherche && matchCaisse;
   });
 
-  const totalItems = transactionsFiltrees.length;
-  const totalPages = Math.ceil(totalItems / taillePage) || 1;
+  // Filtrer les traces d'audit
+  const tracesFiltrees = tracesAudit.filter((trace) => {
+    return (
+      trace.utilisateur.toLowerCase().includes(recherche.toLowerCase()) ||
+      trace.action.toLowerCase().includes(recherche.toLowerCase()) ||
+      trace.entite.toLowerCase().includes(recherche.toLowerCase()) ||
+      trace.details.toLowerCase().includes(recherche.toLowerCase())
+    );
+  });
 
-  useEffect(() => {
-    if (page > totalPages) {
-      setPage(1);
-    }
-  }, [totalItems, totalPages, page]);
+  const getBadgeColorAction = (action: string) => {
+    const act = action.toUpperCase();
+    if (act.includes('CRÉATION') || act.includes('CREATION') || act.includes('AUTORISATION')) return 'badge-success';
+    if (act.includes('SUPPRESSION') || act.includes('INACTIF')) return 'badge-danger';
+    return 'badge-partial'; // modification, etc
+  };
+
+  // Pagination calculs
+  const totalItems = ongletActif === 'versements' ? transactionsFiltrees.length : tracesFiltrees.length;
+  const totalPages = Math.ceil(totalItems / taillePage) || 1;
 
   const indexDernier = page * taillePage;
   const indexPremier = indexDernier - taillePage;
-  const itemsPaginees = transactionsFiltrees.slice(indexPremier, indexDernier);
+
+  const transactionsPaginees = transactionsFiltrees.slice(indexPremier, indexDernier);
+  const tracesPaginees = tracesFiltrees.slice(indexPremier, indexDernier);
 
   const gererSoumissionModifTx = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +112,13 @@ export const Historique: React.FC = () => {
 
     const res = store.modifierCotisation(txAModifier.id, valMontant);
     if (res.success) {
+      // Écrire un log d'audit
+      habStore.ajouterTrace(
+        'admin@medec-ci.org',
+        'MODIFICATION',
+        'Transaction',
+        `Correction du versement n°${txAModifier.id} (${obtenirNomMembre(txAModifier.idMembre)}). Montant modifié de ${formaterDevise(txAModifier.montant)} à ${formaterDevise(valMontant)}.`
+      );
       setEditSuccess('Le versement a été modifié avec succès.');
       setTimeout(() => {
         setTxAModifier(null);
@@ -88,6 +130,27 @@ export const Historique: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* Barre d'onglets premium */}
+      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
+        <button
+          onClick={() => setOngletActif('versements')}
+          className={ongletActif === 'versements' ? 'btn-prim' : 'btn-sec'}
+          style={{ padding: '8px 18px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: 600 }}
+        >
+          <History className="h-4 w-4" />
+          <span>Historique des Versements</span>
+        </button>
+        <button
+          onClick={() => setOngletActif('audit')}
+          className={ongletActif === 'audit' ? 'btn-prim' : 'btn-sec'}
+          style={{ padding: '8px 18px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: 600 }}
+        >
+          <ShieldAlert className="h-4 w-4" />
+          <span>Audit & Traçabilité Générale</span>
+        </button>
+      </div>
+
       {/* Barre de Recherche et Filtres */}
       <div className="flt-bar" style={{ background: 'var(--color-bg-card)', borderRadius: 'var(--radius-md)', padding: '16px 20px', boxShadow: 'var(--shadow-sm)' }}>
         <div className="flt-left">
@@ -95,147 +158,220 @@ export const Historique: React.FC = () => {
             <Search className="s-ico h-4.5 w-4.5" />
             <input
               type="text"
-              placeholder="Rechercher par fidèle..."
+              placeholder={ongletActif === 'versements' ? "Rechercher par fidèle..." : "Rechercher par utilisateur, action, entité..."}
               value={recherche}
               onChange={(e) => { setRecherche(e.target.value); setPage(1); }}
             />
           </div>
-          <select
-            value={filtreCaisse}
-            onChange={(e) => { setFiltreCaisse(e.target.value); setPage(1); }}
-            className="flt-sel"
-          >
-            <option value="">Toutes les caisses</option>
-            {caisses.map((c) => (
-              <option key={c.id} value={c.id}>{c.nom} {c.archivee && '(Archivée)'}</option>
-            ))}
-          </select>
+          {ongletActif === 'versements' && (
+            <select
+              value={filtreCaisse}
+              onChange={(e) => { setFiltreCaisse(e.target.value); setPage(1); }}
+              className="flt-sel"
+            >
+              <option value="">Toutes les caisses</option>
+              {caisses.map((c) => (
+                <option key={c.id} value={c.id}>{c.nom} {c.archivee && '(Archivée)'}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flt-right">
           <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-dark-muted)' }}>
-            Total : {totalItems} transactions
+            Total : {totalItems} ligne{totalItems !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
 
-      {/* Tableau d'Historique Global */}
+      {/* Tableau Principal */}
       <div className="tbl-card">
-        <div className="tbl-scroll">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th style={{ width: '44px' }}>#</th>
-                <th>Fidèle Cotisant</th>
-                <th>Caisse d'affectation</th>
-                <th>Montant Versé</th>
-                <th>Date / Heure</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {itemsPaginees.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="empty-td">
-                    Aucun flux de versement enregistré dans l'historique.
-                  </td>
-                </tr>
-              ) : (
-                itemsPaginees.map((tx, idx) => (
-                  <tr key={tx.id}>
-                    <td className="col-num">{indexPremier + idx + 1}</td>
-                    <td>
-                      <div className="user-cell">
-                        <div className="ava-sm">
-                          {obtenirNomMembre(tx.idMembre).split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <span className="user-name">{obtenirNomMembre(tx.idMembre)}</span>
-                          <p className="user-sub">Ref: {tx.idMembre}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="bdg-code bg-slate-100 px-2.5 py-1 rounded">
-                        {obtenirNomCaisse(tx.idCaisse)}
-                      </span>
-                    </td>
-                    <td className="fw700" style={{ color: 'var(--color-primary)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>{formaterDevise(tx.montant)}</span>
-                        {tx.modifications && tx.modifications.length > 0 && (
-                          <span style={{ fontSize: '10px', color: 'var(--color-warning)', fontWeight: 'normal' }}>
-                            (Ajusté)
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="col-muted">{formaterDate(tx.date)}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => {
-                            setTxAModifier(tx);
-                            setNouveauMontantModif(tx.montant.toString());
-                            setEditError('');
-                            setEditSuccess('');
-                          }}
-                          className="btn-edit"
-                          title="Ajuster"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => router.push(`/admin/membres`)}
-                          className="btn-detail"
-                          title="Fiche Fidèle"
-                        >
-                          <User className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {enChargement ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B4F8A]" />
+          </div>
+        ) : (
+          <>
+            <div className="tbl-scroll">
+              <table className="tbl">
+                {ongletActif === 'versements' ? (
+                  <>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '44px' }}>#</th>
+                        <th>Fidèle Cotisant</th>
+                        <th>Caisse d'affectation</th>
+                        <th>Montant Versé</th>
+                        <th>Date / Heure</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactionsPaginees.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="empty-td">
+                            Aucun flux de versement enregistré dans l'historique.
+                          </td>
+                        </tr>
+                      ) : (
+                        transactionsPaginees.map((tx, idx) => (
+                          <tr key={tx.id}>
+                            <td className="col-num">{indexPremier + idx + 1}</td>
+                            <td>
+                              <div className="user-cell">
+                                <div className="ava-sm">
+                                  {obtenirNomMembre(tx.idMembre).split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="info">
+                                  <span className="name">{obtenirNomMembre(tx.idMembre)}</span>
+                                  <span className="sub">{tx.idMembre}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span className="fw600" style={{ color: 'var(--color-dark)', fontSize: '13px' }}>
+                                  {obtenirNomCaisse(tx.idCaisse)}
+                                </span>
+                                {tx.typeDon && (
+                                  <span style={{ fontSize: '10.5px', color: 'var(--color-dark-muted)' }}>
+                                    Type : {tx.typeDon}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="fw700 text-[#0B3C91]">{formaterDevise(tx.montant)}</span>
+                            </td>
+                            <td style={{ fontSize: '12px', color: 'var(--color-dark-muted)' }}>
+                              {formaterDate(tx.date, true)}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                onClick={() => {
+                                  setTxAModifier(tx);
+                                  setNouveauMontantModif(String(tx.montant));
+                                  setEditError('');
+                                  setEditSuccess('');
+                                }}
+                                className="btn-edit"
+                                title="Corriger le montant"
+                                style={{ padding: '6px' }}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </>
+                ) : (
+                  // Onglet Audit
+                  <>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '44px' }}>#</th>
+                        <th>Date & Heure</th>
+                        <th>Utilisateur</th>
+                        <th>Action</th>
+                        <th>Entité</th>
+                        <th>Détails de l'action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tracesPaginees.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="empty-td">
+                            Aucune trace d'audit enregistrée dans le journal.
+                          </td>
+                        </tr>
+                      ) : (
+                        tracesPaginees.map((trace: AuditTrace, idx) => (
+                          <tr key={trace.id}>
+                            <td className="col-num">{indexPremier + idx + 1}</td>
+                            <td style={{ fontSize: '12px', color: 'var(--color-dark-muted)', whiteSpace: 'nowrap' }}>
+                              {formaterDate(trace.date, true)}
+                            </td>
+                            <td>
+                              <div className="user-cell">
+                                <div className="ava-sm" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>
+                                  <User className="h-3 w-3" />
+                                </div>
+                                <span className="name" style={{ fontSize: '12.5px' }}>{trace.utilisateur}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`badge ${getBadgeColorAction(trace.action)}`} style={{ fontSize: '10px', fontWeight: '800' }}>
+                                {trace.action}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge badge-partial" style={{ fontSize: '10.5px' }}>
+                                {trace.entite}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '12.5px', color: 'var(--color-dark-muted)', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {trace.details}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </>
+                )}
+              </table>
+            </div>
 
-        <PaginationFooter
-          total={totalItems}
-          page={page}
-          pageSize={taillePage}
-          totalPages={totalPages}
-          label="transactions"
-          onPageChange={setPage}
-          onPageSizeChange={(sz) => { setTaillePage(sz); setPage(1); }}
-        />
+            {/* Footer de Pagination */}
+            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--color-border)' }}>
+              <PaginationFooter
+                total={totalItems}
+                page={page}
+                pageSize={taillePage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                onPageSizeChange={setTaillePage}
+              />
+            </div>
+          </>
+        )}
       </div>
 
-      {/* MODALE DE TRAÇABILITÉ / MODIFICATION DE COTISATION */}
+      {/* MODAL CORRECTION VERSEMENT (onglet versements) */}
       <AnimatePresence>
         {txAModifier && (
-          <div className="modal-overlay" onClick={() => setTxAModifier(null)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="modal"
-              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
             >
-              <h3 className="modal-title font-poppins font-bold">Ajuster le Versement (Traçabilité)</h3>
-
-              {editError && <div className="frm-alert err">{editError}</div>}
-              {editSuccess && <div className="frm-alert ok">{editSuccess}</div>}
-
-              <form onSubmit={gererSoumissionModifTx} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div className="frm-grp">
-                  <span className="frm-lbl">Fidèle</span>
-                  <p style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--color-dark)', margin: 0 }}>{obtenirNomMembre(txAModifier.idMembre)}</p>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText className="h-5 w-5 text-white" />
+                  <h3 style={{ fontSize: '15px', fontWeight: '850', color: 'white', margin: 0 }}>
+                    Corriger le Versement
+                  </h3>
                 </div>
-                <div className="frm-grp">
-                  <span className="frm-lbl">Caisse d'affectation</span>
-                  <p style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--color-dark)', margin: 0 }}>{obtenirNomCaisse(txAModifier.idCaisse)}</p>
+                <button
+                  onClick={() => setTxAModifier(null)}
+                  style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer' }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={gererSoumissionModifTx} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {editError && <div className="frm-alert err">{editError}</div>}
+                {editSuccess && <div className="frm-alert ok">{editSuccess}</div>}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12.5px', background: 'var(--color-primary-soft)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                  <div><span style={{ color: 'var(--color-dark-muted)' }}>Fidèle :</span> <strong style={{ color: 'var(--color-dark)' }}>{obtenirNomMembre(txAModifier.idMembre)}</strong></div>
+                  <div><span style={{ color: 'var(--color-dark-muted)' }}>Caisse :</span> <strong style={{ color: 'var(--color-dark)' }}>{obtenirNomCaisse(txAModifier.idCaisse)}</strong></div>
+                  <div><span style={{ color: 'var(--color-dark-muted)' }}>Date originale :</span> <strong style={{ color: 'var(--color-dark)' }}>{formaterDate(txAModifier.date, true)}</strong></div>
                 </div>
+
                 <div className="frm-grp">
                   <label className="frm-lbl">Montant du versement (FCFA) *</label>
                   <input
@@ -243,36 +379,26 @@ export const Historique: React.FC = () => {
                     value={nouveauMontantModif}
                     onChange={(e) => setNouveauMontantModif(e.target.value)}
                     className="frm-inp"
-                    min="1"
                     required
+                    autoFocus
                   />
                 </div>
 
-                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '10px' }}>
-                  <span className="frm-lbl" style={{ display: 'block', marginBottom: '6px' }}>Historique d'Audit (Corrections)</span>
-                  {txAModifier.modifications && txAModifier.modifications.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '100px', overflowY: 'auto' }} className="no-scrollbar">
-                      {txAModifier.modifications.map((m: any, index: number) => (
-                        <div key={index} style={{ fontSize: '11px', color: 'var(--color-dark-muted)', background: 'var(--color-bg-main)', padding: '6px 8px', borderRadius: '4px', borderLeft: '3px solid var(--color-warning)' }}>
-                          Corrigé le : {new Date(m.date).toLocaleString('fr-FR')}<br />
-                          Montant : {formaterDevise(m.ancienMontant)} &rarr; {formaterDevise(m.nouveauMontant)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: '12px', color: 'var(--color-dark-muted)', fontStyle: 'italic' }}>Aucun ajustement antérieur.</span>
-                  )}
-                </div>
-
-                <div className="modal-actions">
-                  <button type="button" onClick={() => setTxAModifier(null)} className="btn-sec">Annuler</button>
-                  <button type="submit" className="btn-prim">Enregistrer</button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '10px' }}>
+                  <button type="button" className="btn-sec" onClick={() => setTxAModifier(null)}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn-prim">
+                    <Check className="h-4 w-4" />
+                    <span>Valider la correction</span>
+                  </button>
                 </div>
               </form>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
     </div>
   );
 };
