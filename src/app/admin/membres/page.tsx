@@ -5,7 +5,7 @@ import Membres from '../../../views/admin/Membres';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'TRESORIER']}>
+    <GardeRoute menuCode="MEMBRES">
       <Membres />
     </GardeRoute>
   );

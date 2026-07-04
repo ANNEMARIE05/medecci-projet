@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Trash2, Eye, Check, HelpCircle, Flame, Plus, Save } from 'lucide-react';
 import priereService from '../../services/priereService';
-import type { DemandePriere } from '../../stores/useDonneesStore';
+import type { DemandePriere } from '../../types/models';
 import { formaterDate, formaterTelephone } from '../../utils/formateur';
 import { motion, AnimatePresence } from 'framer-motion';
 

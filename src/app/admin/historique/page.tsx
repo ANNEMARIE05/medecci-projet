@@ -5,7 +5,7 @@ import Historique from '../../../views/admin/Historique';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'TRESORIER']}>
+    <GardeRoute menuCode="HISTORIQUE">
       <Historique />
     </GardeRoute>
   );

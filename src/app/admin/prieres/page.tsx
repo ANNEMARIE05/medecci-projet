@@ -5,7 +5,7 @@ import Prieres from '../../../views/admin/Prieres';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="PRIERES">
       <Prieres />
     </GardeRoute>
   );

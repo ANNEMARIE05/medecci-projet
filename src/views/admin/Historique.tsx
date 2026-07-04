@@ -1,16 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
-import { useHabilitationsStore, AuditTrace } from '../../stores/useHabilitationsStore';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import caisseService from '../../services/caisseService';
+import membreService from '../../services/membreService';
+import cotisationService from '../../services/cotisationService';
+import habilitationService from '../../services/habilitationService';
+import type { AuditTrace } from '../../types/models';
+import { calculerTotalCaisse } from '../../lib/caisseUtils';
 import { formaterDevise, formaterDate } from '../../utils/formateur';
 import PaginationFooter from '../../components/UI/PaginationFooter';
-import { Search, User, Edit2, History, ShieldAlert, FileText, Check, Shield, X } from 'lucide-react';
+import { Search, User, Edit2, History, ShieldAlert, FileText, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Historique: React.FC = () => {
-  const store = useDonneesStore();
-  const habStore = useHabilitationsStore();
-  const { caisses, membres, transactions } = store;
-  const { tracesAudit } = habStore;
+  const queryClient = useQueryClient();
+  const { data: caisses = [] } = useQuery({ queryKey: ['caisses'], queryFn: caisseService.recupererCaisses });
+  const { data: membres = [] } = useQuery({ queryKey: ['membres'], queryFn: membreService.recupererMembres });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: cotisationService.recupererTransactions });
+  const { data: tracesAudit = [] } = useQuery({ queryKey: ['audit'], queryFn: habilitationService.recupererAudit });
+
+  const modifierCotisationMutation = useMutation({
+    mutationFn: (vars: { idTx: string; montant: number }) => cotisationService.modifierCotisation(vars.idTx, vars.montant),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['caisses'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['audit'] });
+    },
+  });
 
   // Gestion des onglets
   const [ongletActif, setOngletActif] = useState<'versements' | 'audit'>('versements');
@@ -102,7 +117,7 @@ export const Historique: React.FC = () => {
 
     const caisse = caisses.find(c => c.id === txAModifier.idCaisse);
     if (caisse && caisse.objectif > 0) {
-      const soldeActuel = store.calculerTotalCaisse(txAModifier.idCaisse);
+      const soldeActuel = calculerTotalCaisse(caisse);
       const resteAutorise = caisse.objectif - (soldeActuel - txAModifier.montant);
       if (valMontant > resteAutorise) {
         setEditError(`Ce montant dépasse l'objectif de la caisse. Le montant maximum autorisé est de ${formaterDevise(resteAutorise)}.`);
@@ -110,22 +125,15 @@ export const Historique: React.FC = () => {
       }
     }
 
-    const res = store.modifierCotisation(txAModifier.id, valMontant);
-    if (res.success) {
-      // Écrire un log d'audit
-      habStore.ajouterTrace(
-        'admin@medec-ci.org',
-        'MODIFICATION',
-        'Transaction',
-        `Correction du versement n°${txAModifier.id} (${obtenirNomMembre(txAModifier.idMembre)}). Montant modifié de ${formaterDevise(txAModifier.montant)} à ${formaterDevise(valMontant)}.`
-      );
-      setEditSuccess('Le versement a été modifié avec succès.');
-      setTimeout(() => {
-        setTxAModifier(null);
-      }, 1000);
-    } else {
-      setEditError(res.error || "Erreur de modification");
-    }
+    modifierCotisationMutation.mutate({ idTx: txAModifier.id, montant: valMontant }, {
+      onSuccess: () => {
+        setEditSuccess('Le versement a été modifié avec succès.');
+        setTimeout(() => {
+          setTxAModifier(null);
+        }, 1000);
+      },
+      onError: (err: any) => setEditError(err.message || 'Erreur de modification'),
+    });
   };
 
   return (

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
-import { useHabilitationsStore, Action, Menu } from '../../stores/useHabilitationsStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import categorieService, { Categorie } from '../../services/categorieService';
+import statutService, { Statut } from '../../services/statutService';
+import habilitationService from '../../services/habilitationService';
+import type { Action, Menu } from '../../types/models';
 import {
   Plus, Edit2, Trash2, Check, Tags, ShieldAlert,
   Zap, LayoutGrid, X, ChevronDown, ChevronUp, Search
@@ -10,11 +12,45 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PaginationFooter from '../../components/UI/PaginationFooter';
 
 export const Parametrage: React.FC = () => {
-  const store = useDonneesStore();
-  const habStore = useHabilitationsStore();
-  const { categories, statuts } = store;
-  const { actions, menus } = habStore;
-  const { utilisateur } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { data: categories = [] } = useQuery({ queryKey: ['categories'], queryFn: categorieService.recupererCategories });
+  const { data: statuts = [] } = useQuery({ queryKey: ['statuts'], queryFn: statutService.recupererStatuts });
+  const { data: actions = [] } = useQuery({ queryKey: ['hab-actions'], queryFn: habilitationService.recupererActions });
+  const { data: menus = [] } = useQuery({ queryKey: ['hab-menus'], queryFn: habilitationService.recupererMenus });
+
+  const invalider = (cle: string) => queryClient.invalidateQueries({ queryKey: [cle] });
+
+  const ajouterCategorieM = useMutation({ mutationFn: categorieService.ajouterCategorie, onSuccess: () => invalider('categories') });
+  const modifierCategorieM = useMutation({
+    mutationFn: (v: { id: string; nom: string }) => categorieService.modifierCategorie(v.id, v.nom),
+    onSuccess: () => invalider('categories'),
+  });
+  const supprimerCategorieM = useMutation({ mutationFn: categorieService.supprimerCategorie, onSuccess: () => invalider('categories') });
+
+  const ajouterStatutM = useMutation({ mutationFn: statutService.ajouterStatut, onSuccess: () => invalider('statuts') });
+  const modifierStatutM = useMutation({
+    mutationFn: (v: { id: string; nom: string }) => statutService.modifierStatut(v.id, v.nom),
+    onSuccess: () => invalider('statuts'),
+  });
+  const supprimerStatutM = useMutation({ mutationFn: statutService.supprimerStatut, onSuccess: () => invalider('statuts') });
+
+  const ajouterActionM = useMutation({ mutationFn: habilitationService.ajouterAction, onSuccess: () => invalider('hab-actions') });
+  const modifierActionM = useMutation({
+    mutationFn: (v: { id: string; data: Partial<Omit<Action, 'id'>> }) => habilitationService.modifierAction(v.id, v.data),
+    onSuccess: () => invalider('hab-actions'),
+  });
+  const supprimerActionM = useMutation({ mutationFn: habilitationService.supprimerAction, onSuccess: () => invalider('hab-actions') });
+
+  const ajouterMenuM = useMutation({ mutationFn: habilitationService.ajouterMenu, onSuccess: () => invalider('hab-menus') });
+  const modifierMenuM = useMutation({
+    mutationFn: (v: { id: string; data: Partial<Omit<Menu, 'id'>> }) => habilitationService.modifierMenu(v.id, v.data),
+    onSuccess: () => invalider('hab-menus'),
+  });
+  const supprimerMenuM = useMutation({ mutationFn: habilitationService.supprimerMenu, onSuccess: () => invalider('hab-menus') });
+  const assignerActionsMenuM = useMutation({
+    mutationFn: (v: { menuId: string; actionIds: string[] }) => habilitationService.assignerActionsMenu(v.menuId, v.actionIds),
+    onSuccess: () => invalider('hab-menus'),
+  });
 
   type OngletType = 'categories' | 'statuts' | 'actions' | 'menus';
   const [ongletActif, setOngletActif] = useState<OngletType>('categories');
@@ -85,9 +121,9 @@ export const Parametrage: React.FC = () => {
   const ouvrirModification = (el: any) => {
     setElementEnModification(el);
     if (ongletActif === 'categories') {
-      setFormCat(el);
+      setFormCat(el.nom);
     } else if (ongletActif === 'statuts') {
-      setFormStatut(el);
+      setFormStatut(el.nom);
     } else if (ongletActif === 'actions') {
       setFormAction({ code: el.code, libelle: el.libelle, description: el.description || '' });
     } else if (ongletActif === 'menus') {
@@ -98,117 +134,82 @@ export const Parametrage: React.FC = () => {
 
   const handleValiderFormulaire = (e: React.FormEvent) => {
     e.preventDefault();
-    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
 
     if (ongletActif === 'categories') {
       const nomClean = formCat.trim();
       if (!nomClean) return flash(false, 'Le nom ne peut pas être vide.');
-      if (elementEnModification) {
-        const res = store.modifierCategorie(elementEnModification, nomClean);
-        if (res.success) {
-          habStore.ajouterTrace(userEmail, 'MODIFICATION', 'Catégorie', `Modification de la catégorie financière "${elementEnModification}" -> "${nomClean}".`);
-          flash(true, 'Catégorie renommée avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      } else {
-        const res = store.ajouterCategorie(nomClean);
-        if (res.success) {
-          habStore.ajouterTrace(userEmail, 'CRÉATION', 'Catégorie', `Création de la catégorie financière "${nomClean}".`);
-          flash(true, 'Catégorie ajoutée avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      }
+      const mutation = elementEnModification
+        ? modifierCategorieM.mutateAsync({ id: elementEnModification.id, nom: nomClean })
+        : ajouterCategorieM.mutateAsync(nomClean);
+      mutation
+        .then(() => { flash(true, elementEnModification ? 'Catégorie renommée avec succès.' : 'Catégorie ajoutée avec succès.'); reinitialiserFormulaire(); })
+        .catch((err: any) => flash(false, err.message || 'Erreur.'));
     }
 
     else if (ongletActif === 'statuts') {
       const nomClean = formStatut.trim();
       if (!nomClean) return flash(false, 'Le nom ne peut pas être vide.');
-      if (elementEnModification) {
-        const res = store.modifierStatut(elementEnModification, nomClean);
-        if (res.success) {
-          habStore.ajouterTrace(userEmail, 'MODIFICATION', 'Statut', `Modification du statut de fidèle "${elementEnModification}" -> "${nomClean}".`);
-          flash(true, 'Statut renommé avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      } else {
-        const res = store.ajouterStatut(nomClean);
-        if (res.success) {
-          habStore.ajouterTrace(userEmail, 'CRÉATION', 'Statut', `Création du statut de fidèle "${nomClean}".`);
-          flash(true, 'Statut ajouté avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      }
+      const mutation = elementEnModification
+        ? modifierStatutM.mutateAsync({ id: elementEnModification.id, nom: nomClean })
+        : ajouterStatutM.mutateAsync(nomClean);
+      mutation
+        .then(() => { flash(true, elementEnModification ? 'Statut renommé avec succès.' : 'Statut ajouté avec succès.'); reinitialiserFormulaire(); })
+        .catch((err: any) => flash(false, err.message || 'Erreur.'));
     }
 
     else if (ongletActif === 'actions') {
-      if (elementEnModification) {
-        const res = habStore.modifierAction(elementEnModification.id, formAction, userEmail);
-        if (res.success) {
-          flash(true, 'Action mise à jour avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      } else {
-        const res = habStore.ajouterAction(formAction, userEmail);
-        if (res.success) {
-          flash(true, 'Action créée avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      }
+      const mutation = elementEnModification
+        ? modifierActionM.mutateAsync({ id: elementEnModification.id, data: formAction })
+        : ajouterActionM.mutateAsync(formAction);
+      mutation
+        .then(() => { flash(true, elementEnModification ? 'Action mise à jour avec succès.' : 'Action créée avec succès.'); reinitialiserFormulaire(); })
+        .catch((err: any) => flash(false, err.message || 'Erreur.'));
     }
 
     else if (ongletActif === 'menus') {
-      if (elementEnModification) {
-        const res = habStore.modifierMenu(elementEnModification.id, formMenu, userEmail);
-        if (res.success) {
-          flash(true, 'Menu mis à jour avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      } else {
-        const res = habStore.ajouterMenu(formMenu, userEmail);
-        if (res.success) {
-          flash(true, 'Menu créé avec succès.');
-          reinitialiserFormulaire();
-        } else flash(false, res.error || 'Erreur.');
-      }
+      const mutation = elementEnModification
+        ? modifierMenuM.mutateAsync({ id: elementEnModification.id, data: formMenu })
+        : ajouterMenuM.mutateAsync(formMenu);
+      mutation
+        .then(() => { flash(true, elementEnModification ? 'Menu mis à jour avec succès.' : 'Menu créé avec succès.'); reinitialiserFormulaire(); })
+        .catch((err: any) => flash(false, err.message || 'Erreur.'));
     }
   };
 
   const handleSupprimer = (el: any) => {
-    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
-
     if (ongletActif === 'categories') {
-      if (window.confirm(`Supprimer la catégorie "${el}" ?`)) {
-        const res = store.supprimerCategorie(el);
-        if (res.success) {
-          habStore.ajouterTrace(userEmail, 'SUPPRESSION', 'Catégorie', `Suppression de la catégorie financière "${el}".`);
-          flash(true, 'Catégorie supprimée.');
-        } else flash(false, res.error || 'Erreur.');
+      if (window.confirm(`Supprimer la catégorie "${el.nom}" ?`)) {
+        supprimerCategorieM.mutate(el.id, {
+          onSuccess: () => flash(true, 'Catégorie supprimée.'),
+          onError: (err: any) => flash(false, err.message || 'Erreur.'),
+        });
       }
     }
 
     else if (ongletActif === 'statuts') {
-      if (window.confirm(`Supprimer le statut "${el}" ?`)) {
-        const res = store.supprimerStatut(el);
-        if (res.success) {
-          habStore.ajouterTrace(userEmail, 'SUPPRESSION', 'Statut', `Suppression du statut de fidèle "${el}".`);
-          flash(true, 'Statut supprimé.');
-        } else flash(false, res.error || 'Erreur.');
+      if (window.confirm(`Supprimer le statut "${el.nom}" ?`)) {
+        supprimerStatutM.mutate(el.id, {
+          onSuccess: () => flash(true, 'Statut supprimé.'),
+          onError: (err: any) => flash(false, err.message || 'Erreur.'),
+        });
       }
     }
 
     else if (ongletActif === 'actions') {
       if (window.confirm(`Supprimer l'action "${el.libelle}" ?`)) {
-        const res = habStore.supprimerAction(el.id, userEmail);
-        if (res.success) flash(true, 'Action supprimée.');
-        else flash(false, res.error || 'Erreur.');
+        supprimerActionM.mutate(el.id, {
+          onSuccess: () => flash(true, 'Action supprimée.'),
+          onError: (err: any) => flash(false, err.message || 'Erreur.'),
+        });
       }
     }
 
     else if (ongletActif === 'menus') {
       if (window.confirm(`Supprimer le menu "${el.libelle}" ?`)) {
-        const res = habStore.supprimerMenu(el.id, userEmail);
-        if (res.success) flash(true, 'Menu supprimé.');
-        else flash(false, res.error || 'Erreur.');
+        supprimerMenuM.mutate(el.id, {
+          onSuccess: () => flash(true, 'Menu supprimé.'),
+          onError: (err: any) => flash(false, err.message || 'Erreur.'),
+        });
       }
     }
   };
@@ -220,17 +221,17 @@ export const Parametrage: React.FC = () => {
     const updated = current.includes(actionId)
       ? current.filter(id => id !== actionId)
       : [...current, actionId];
-    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
-    const res = habStore.assignerActionsMenu(menuId, updated, userEmail);
-    if (!res.success) flash(false, res.error || 'Erreur.');
+    assignerActionsMenuM.mutate({ menuId, actionIds: updated }, {
+      onError: (err: any) => flash(false, err.message || 'Erreur.'),
+    });
   };
 
   // Filtrage selon l'onglet
   let donneesFiltrees: any[] = [];
   if (ongletActif === 'categories') {
-    donneesFiltrees = categories.filter(c => c.toLowerCase().includes(recherche.toLowerCase()));
+    donneesFiltrees = categories.filter((c: Categorie) => c.nom.toLowerCase().includes(recherche.toLowerCase()));
   } else if (ongletActif === 'statuts') {
-    donneesFiltrees = statuts.filter(s => s.toLowerCase().includes(recherche.toLowerCase()));
+    donneesFiltrees = statuts.filter((s: Statut) => s.nom.toLowerCase().includes(recherche.toLowerCase()));
   } else if (ongletActif === 'actions') {
     donneesFiltrees = actions.filter(a =>
       a.libelle.toLowerCase().includes(recherche.toLowerCase()) ||
@@ -259,7 +260,7 @@ export const Parametrage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
+
       {/* Sélecteur d'onglets premium */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px', flexWrap: 'wrap' }}>
         {onglets.map(o => (
@@ -322,10 +323,10 @@ export const Parametrage: React.FC = () => {
                       {itemsPaginees.length === 0 ? (
                         <tr><td colSpan={3} className="empty-td">Aucune catégorie.</td></tr>
                       ) : (
-                        itemsPaginees.map((cat, idx) => (
-                          <tr key={cat}>
+                        itemsPaginees.map((cat: Categorie, idx) => (
+                          <tr key={cat.id}>
                             <td className="col-num">{indexPremier + idx + 1}</td>
-                            <td><span className="fw700">{cat}</span></td>
+                            <td><span className="fw700">{cat.nom}</span></td>
                             <td style={{ textAlign: 'right' }}>
                               <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
                                 <button onClick={() => ouvrirModification(cat)} className="btn-edit" title="Modifier"><Edit2 className="h-3.5 w-3.5" /></button>
@@ -352,10 +353,10 @@ export const Parametrage: React.FC = () => {
                       {itemsPaginees.length === 0 ? (
                         <tr><td colSpan={3} className="empty-td">Aucun statut.</td></tr>
                       ) : (
-                        itemsPaginees.map((st, idx) => (
-                          <tr key={st}>
+                        itemsPaginees.map((st: Statut, idx) => (
+                          <tr key={st.id}>
                             <td className="col-num">{indexPremier + idx + 1}</td>
-                            <td><span className="fw700">{st}</span></td>
+                            <td><span className="fw700">{st.nom}</span></td>
                             <td style={{ textAlign: 'right' }}>
                               <div className="act-cell" style={{ justifyContent: 'flex-end' }}>
                                 <button onClick={() => ouvrirModification(st)} className="btn-edit" title="Modifier"><Edit2 className="h-3.5 w-3.5" /></button>

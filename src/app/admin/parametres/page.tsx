@@ -5,7 +5,7 @@ import Parametres from '../../../views/admin/Parametres';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="PARAMETRES">
       <Parametres />
     </GardeRoute>
   );

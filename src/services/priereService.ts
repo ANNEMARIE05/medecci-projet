@@ -1,22 +1,18 @@
-import client from '../api/client';
-import type { DemandePriere } from '../stores/useDonneesStore';
+import { apiFetch } from '../lib/apiFetch';
+import type { DemandePriere } from '../types/models';
 
 export const priereService = {
   recupererDemandesPriere: async (): Promise<DemandePriere[]> => {
-    const response = await client.get('/prieres');
-    return response.data;
+    return apiFetch<DemandePriere[]>('/api/prieres');
   },
   soumettreDemandePriere: async (demande: Omit<DemandePriere, 'id' | 'date' | 'statut'>): Promise<DemandePriere> => {
-    const response = await client.post('/prieres', demande);
-    return response.data;
+    return apiFetch<DemandePriere>('/api/prieres', { method: 'POST', body: JSON.stringify(demande) });
   },
   modifierStatutPriere: async (id: string, statut: DemandePriere['statut']): Promise<DemandePriere> => {
-    const response = await client.put(`/prieres/${id}`, { statut });
-    return response.data;
+    return apiFetch<DemandePriere>(`/api/prieres/${id}`, { method: 'PUT', body: JSON.stringify({ statut }) });
   },
   supprimerDemandePriere: async (id: string): Promise<{ success: boolean }> => {
-    const response = await client.delete(`/prieres/${id}`);
-    return response.data;
-  }
+    return apiFetch<{ success: boolean }>(`/api/prieres/${id}`, { method: 'DELETE' });
+  },
 };
 export default priereService;

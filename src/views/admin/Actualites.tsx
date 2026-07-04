@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { Search, Plus, Edit2, Trash2, Save } from 'lucide-react';
 import actualiteService from '../../services/actualiteService';
-import type { Actualite } from '../../stores/useDonneesStore';
+import type { Actualite } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 import { motion, AnimatePresence } from 'framer-motion';
+import UploadCloudinary from '../../components/UI/UploadCloudinary';
 
 // Schéma de validation Zod
 const schemaActu = zod.object({
@@ -31,10 +32,13 @@ export const Actualites: React.FC = () => {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormActuInput>({
     resolver: zodResolver(schemaActu),
   });
+
+  const imageActuelle = watch('image');
 
   const chargerActus = async () => {
     setEnChargement(true);
@@ -223,12 +227,11 @@ export const Actualites: React.FC = () => {
                   </div>
 
                   <div className="frm-grp">
-                    <label className="frm-lbl">URL de l'image *</label>
-                    <input
-                      type="text"
-                      {...register('image')}
-                      className="frm-inp"
-                      required
+                    <input type="hidden" {...register('image')} />
+                    <UploadCloudinary
+                      label="Image de l'article *"
+                      value={imageActuelle || ''}
+                      onChange={(url) => setValue('image', url, { shouldValidate: true })}
                     />
                     {errors.image && <span style={{ fontSize: '10px', color: 'var(--color-danger)' }}>{errors.image.message}</span>}
                   </div>

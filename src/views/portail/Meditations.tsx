@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, BookOpen, User, Search, ChevronRight, BookMarked, Quote } from 'lucide-react';
 import meditationService from '../../services/meditationService';
-import type { Meditation } from '../../stores/useDonneesStore';
+import type { Meditation } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 import { PHOTOS } from '../../constants/photos';
 

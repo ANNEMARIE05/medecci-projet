@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, User, Search, BookOpen, X, ArrowLeft } from 'lucide-react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
-import type { Actualite } from '../../stores/useDonneesStore';
+import actualiteService from '../../services/actualiteService';
+import type { Actualite } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 import { PHOTOS } from '../../constants/photos';
 
 export const Blog: React.FC = () => {
   const [recherche, setRecherche] = useState('');
   const [articleSelectionne, setArticleSelectionne] = useState<Actualite | null>(null);
-  const actualites = useDonneesStore((state) => state.actualites);
+  const [actualites, setActualites] = useState<Actualite[]>([]);
+
+  useEffect(() => {
+    actualiteService.recupererActualites().then(setActualites).catch(console.error);
+  }, []);
 
   const getPhoto = (index: number, fallback: string) => {
     return PHOTOS && PHOTOS.length > index ? PHOTOS[index] : fallback;

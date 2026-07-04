@@ -5,7 +5,7 @@ import Evenements from '../../../views/admin/Evenements';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="EVENEMENTS">
       <Evenements />
     </GardeRoute>
   );

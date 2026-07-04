@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { Building2, Save, UserCog } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { INFOS_CONTACT } from '../../constants';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // Schéma de validation Zod
 const schemaParametres = zod.object({
@@ -20,7 +21,9 @@ type FormParametresInput = zod.infer<typeof schemaParametres>;
 export const Parametres: React.FC = () => {
   const [soumis, setSoumis] = useState(false);
   const [enCours, setEnCours] = useState(false);
-  const { utilisateur } = useAuthStore();
+  const { data: session } = useSession();
+  const { profilLibelle } = usePermissions();
+  const utilisateur = session?.user;
 
   const {
     register,
@@ -62,7 +65,7 @@ export const Parametres: React.FC = () => {
                 {utilisateur?.prenom} {utilisateur?.nom}
               </h4>
               <span className="badge badge-partial" style={{ fontSize: '10px', marginTop: '4px' }}>
-                {utilisateur?.role}
+                {profilLibelle}
               </span>
             </div>
           </div>

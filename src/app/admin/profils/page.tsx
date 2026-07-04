@@ -5,7 +5,7 @@ import Profils from '../../../views/admin/Profils';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN']}>
+    <GardeRoute menuCode="PROFILS">
       <Profils />
     </GardeRoute>
   );

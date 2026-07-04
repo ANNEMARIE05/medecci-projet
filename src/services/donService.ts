@@ -1,18 +1,18 @@
-import client from '../api/client';
-import type { Don } from '../stores/useDonneesStore';
+import { apiFetch } from '../lib/apiFetch';
+import type { Don } from '../types/models';
 
 export const donService = {
   recupererDons: async (): Promise<Don[]> => {
-    const response = await client.get('/dons');
-    return response.data;
+    return apiFetch<Don[]>('/api/dons');
   },
   enregistrerDon: async (don: Omit<Don, 'id' | 'date'>): Promise<Don> => {
-    const response = await client.post('/dons', don);
-    return response.data;
+    return apiFetch<Don>('/api/dons', { method: 'POST', body: JSON.stringify(don) });
+  },
+  modifierDon: async (id: string, don: Partial<Don>): Promise<Don> => {
+    return apiFetch<Don>(`/api/dons/${id}`, { method: 'PUT', body: JSON.stringify(don) });
   },
   supprimerDon: async (id: string): Promise<{ success: boolean }> => {
-    const response = await client.delete(`/dons/${id}`);
-    return response.data;
-  }
+    return apiFetch<{ success: boolean }>(`/api/dons/${id}`, { method: 'DELETE' });
+  },
 };
 export default donService;

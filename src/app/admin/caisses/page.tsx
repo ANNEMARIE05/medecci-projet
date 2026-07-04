@@ -5,7 +5,7 @@ import Caisses from '../../../views/admin/Caisses';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'TRESORIER']}>
+    <GardeRoute menuCode="CAISSES">
       <Caisses />
     </GardeRoute>
   );

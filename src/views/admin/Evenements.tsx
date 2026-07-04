@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { Search, Plus, Edit2, Trash2, Save, Calendar, MapPin, Tag } from 'lucide-react';
 import evenementService from '../../services/evenementService';
-import type { Evenement } from '../../stores/useDonneesStore';
+import type { Evenement } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 import { motion, AnimatePresence } from 'framer-motion';
+import UploadCloudinary from '../../components/UI/UploadCloudinary';
 
 // Schéma de validation Zod
 const schemaEvenement = zod.object({
@@ -33,10 +34,13 @@ export const Evenements: React.FC = () => {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormEvenementInput>({
     resolver: zodResolver(schemaEvenement),
   });
+
+  const imageActuelle = watch('image');
 
   const chargerEvenements = async () => {
     setEnChargement(true);
@@ -283,12 +287,11 @@ export const Evenements: React.FC = () => {
                   </div>
 
                   <div className="frm-grp frm-span2">
-                    <label className="frm-lbl">Adresse URL de l'image *</label>
-                    <input
-                      type="text"
-                      {...register('image')}
-                      className="frm-inp"
-                      required
+                    <input type="hidden" {...register('image')} />
+                    <UploadCloudinary
+                      label="Image de l'événement *"
+                      value={imageActuelle || ''}
+                      onChange={(url) => setValue('image', url, { shouldValidate: true })}
                     />
                     {errors.image && <span style={{ fontSize: '10px', color: 'var(--color-danger)' }}>{errors.image.message}</span>}
                   </div>

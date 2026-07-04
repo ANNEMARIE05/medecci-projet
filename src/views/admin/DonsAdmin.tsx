@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Trash2, Coins, Calendar, ShieldCheck, Heart } from 'lucide-react';
+import { Search, Trash2, Edit2, Coins, Calendar, ShieldCheck, Heart, Save } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import donService from '../../services/donService';
-import type { Don } from '../../stores/useDonneesStore';
+import type { Don } from '../../types/models';
 import { formaterDevise, formaterDate, formaterTelephone } from '../../utils/formateur';
+
+const typesDonOptions: Don['typeDon'][] = ['Dîme', 'Offrande', 'Construction', 'Social', 'Mission'];
+const modesPaiementOptions: Don['modePaiement'][] = ['Wave', 'Orange Money', 'MTN MoMo', 'Moov Money', 'Carte Bancaire'];
 
 export const DonsAdmin: React.FC = () => {
   const [dons, setDons] = useState<Don[]>([]);
   const [recherche, setRecherche] = useState('');
   const [typeFiltre, setTypeFiltre] = useState('tous');
   const [enChargement, setEnChargement] = useState(false);
+
+  const [donEnModification, setDonEnModification] = useState<Don | null>(null);
+  const [formModif, setFormModif] = useState({
+    nomDonateur: '', telephone: '', montant: '', typeDon: typesDonOptions[0], modePaiement: modesPaiementOptions[0], commentaire: '',
+  });
+  const [modifError, setModifError] = useState('');
 
   const chargerDons = async () => {
     setEnChargement(true);
@@ -34,6 +44,46 @@ export const DonsAdmin: React.FC = () => {
       } catch (e) {
         console.error(e);
       }
+    }
+  };
+
+  const ouvrirModification = (don: Don) => {
+    setDonEnModification(don);
+    setFormModif({
+      nomDonateur: don.nomDonateur,
+      telephone: don.telephone,
+      montant: String(don.montant),
+      typeDon: don.typeDon,
+      modePaiement: don.modePaiement,
+      commentaire: don.commentaire || '',
+    });
+    setModifError('');
+  };
+
+  const gererSoumissionModification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModifError('');
+    if (!donEnModification) return;
+
+    const montantNum = Number(formModif.montant);
+    if (!formModif.nomDonateur.trim() || isNaN(montantNum) || montantNum <= 0) {
+      setModifError('Nom du donateur et montant (supérieur à 0) sont obligatoires.');
+      return;
+    }
+
+    try {
+      await donService.modifierDon(donEnModification.id, {
+        nomDonateur: formModif.nomDonateur,
+        telephone: formModif.telephone,
+        montant: montantNum,
+        typeDon: formModif.typeDon,
+        modePaiement: formModif.modePaiement,
+        commentaire: formModif.commentaire,
+      });
+      setDonEnModification(null);
+      chargerDons();
+    } catch (e: any) {
+      setModifError(e.message || 'Erreur lors de la modification.');
     }
   };
 
@@ -162,13 +212,22 @@ export const DonsAdmin: React.FC = () => {
                       {formaterDevise(don.montant)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleSupprimer(don.id)}
-                        className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"
-                        title="Effacer de l'historique"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => ouvrirModification(don)}
+                          className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-medecci-bleuRoyal transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleSupprimer(don.id)}
+                          className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"
+                          title="Effacer de l'historique"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -177,6 +236,102 @@ export const DonsAdmin: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* MODALE DE MODIFICATION D'UN DON */}
+      <AnimatePresence>
+        {donEnModification && (
+          <div className="modal-overlay" onClick={() => setDonEnModification(null)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="modal"
+              style={{ maxWidth: '520px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="modal-title">Modifier le Don</h3>
+
+              {modifError && <div className="frm-alert err">{modifError}</div>}
+
+              <form onSubmit={gererSoumissionModification} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="frm-grid" style={{ gap: '12px' }}>
+                  <div className="frm-grp">
+                    <label className="frm-lbl">Nom du donateur *</label>
+                    <input
+                      type="text"
+                      value={formModif.nomDonateur}
+                      onChange={(e) => setFormModif((f) => ({ ...f, nomDonateur: e.target.value }))}
+                      className="frm-inp"
+                      required
+                    />
+                  </div>
+                  <div className="frm-grp">
+                    <label className="frm-lbl">Téléphone</label>
+                    <input
+                      type="text"
+                      value={formModif.telephone}
+                      onChange={(e) => setFormModif((f) => ({ ...f, telephone: e.target.value }))}
+                      className="frm-inp"
+                    />
+                  </div>
+                  <div className="frm-grp">
+                    <label className="frm-lbl">Montant (FCFA) *</label>
+                    <input
+                      type="number"
+                      value={formModif.montant}
+                      onChange={(e) => setFormModif((f) => ({ ...f, montant: e.target.value }))}
+                      className="frm-inp"
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="frm-grp">
+                    <label className="frm-lbl">Type de don</label>
+                    <select
+                      value={formModif.typeDon}
+                      onChange={(e) => setFormModif((f) => ({ ...f, typeDon: e.target.value as Don['typeDon'] }))}
+                      className="frm-inp"
+                    >
+                      {typesDonOptions.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="frm-grp">
+                    <label className="frm-lbl">Mode de paiement</label>
+                    <select
+                      value={formModif.modePaiement}
+                      onChange={(e) => setFormModif((f) => ({ ...f, modePaiement: e.target.value as Don['modePaiement'] }))}
+                      className="frm-inp"
+                    >
+                      {modesPaiementOptions.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="frm-grp frm-span2">
+                    <label className="frm-lbl">Commentaire</label>
+                    <input
+                      type="text"
+                      value={formModif.commentaire}
+                      onChange={(e) => setFormModif((f) => ({ ...f, commentaire: e.target.value }))}
+                      className="frm-inp"
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" onClick={() => setDonEnModification(null)} className="btn-sec">Annuler</button>
+                  <button type="submit" className="btn-prim">
+                    <Save className="h-4 w-4" />
+                    <span>Enregistrer</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

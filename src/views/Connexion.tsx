@@ -4,9 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
-import { ShieldCheck, Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuthStore } from '../stores/useAuthStore';
-import authService from '../services/authService';
+import { ShieldCheck, Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { signIn } from 'next-auth/react';
 const logo = '/logo.jpg';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -24,20 +23,17 @@ export const Connexion: React.FC = () => {
   const [loadingLabel, setLoadingLabel] = useState('Authentification...');
   const [erreur, setErreur] = useState<string | null>(null);
   const [showPwd, setShowPwd] = useState(false);
-  const [showDemo, setShowDemo] = useState(false); // État pour afficher/masquer les accès de démo
 
   const router = useRouter();
-  const loginAction = useAuthStore((state) => state.connexion);
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<FormConnexionInput>({
     resolver: zodResolver(schemaConnexion),
     defaultValues: {
-      email: 'admin@medecci.org', // Remplissage par défaut
+      email: 'admin@medec-ci.org', // Remplissage par défaut
       motDePasse: 'admin123',
     }
   });
@@ -48,29 +44,28 @@ export const Connexion: React.FC = () => {
     setLoadingLabel('Recherche de session...');
     setErreur(null);
 
-    try {
-      // Appel du service via Axios
-      const result = await authService.connexion(donnees.email, donnees.motDePasse);
-      
-      setLoadingLabel('Validation des accès...');
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      setLoadingPhase('success');
-      setLoadingLabel('Connexion réussie !');
-      await new Promise((resolve) => setTimeout(resolve, 600));
+    const result = await signIn('credentials', {
+      email: donnees.email,
+      password: donnees.motDePasse,
+      redirect: false,
+    });
 
-      // Enregistrement dans le store Zustand local
-      loginAction(result.utilisateur, result.jeton);
-      
-      setEnCours(false);
-      // Redirection vers le dashboard
-      router.push('/admin');
-    } catch (err: any) {
+    if (result?.error) {
       setEnCours(false);
       setLoadingPhase('idle');
-      const message = err.response?.data?.message || 'Erreur lors de la connexion.';
-      setErreur(message);
+      setErreur('Identifiants de connexion incorrects.');
+      return;
     }
+
+    setLoadingLabel('Validation des accès...');
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    setLoadingPhase('success');
+    setLoadingLabel('Connexion réussie !');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    setEnCours(false);
+    router.push('/admin');
   };
 
   return (
@@ -190,57 +185,6 @@ export const Connexion: React.FC = () => {
           box-shadow: var(--shadow-sm);
         }
         .submit-btn:hover { background-color: var(--color-primary-hover); box-shadow: var(--shadow-md); }
-
-        .demo-toggle-btn {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          padding: 10px 14px;
-          background: rgba(27, 79, 138, 0.04);
-          border: 1px solid rgba(27, 79, 138, 0.1);
-          border-radius: var(--radius-sm);
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--color-primary);
-          margin-top: 20px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .demo-toggle-btn:hover {
-          background: rgba(27, 79, 138, 0.08);
-        }
-
-        .accounts-tip-box {
-          padding: 12px;
-          background: rgba(27, 79, 138, 0.02);
-          border: 1px dashed var(--color-border);
-          border-radius: var(--radius-sm);
-          font-size: 11.5px;
-          color: var(--color-dark-muted);
-        }
-
-        .accounts-list {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          margin-top: 6px;
-        }
-
-        .account-badge {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 5px 8px;
-          background: #FFFFFF;
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-xs);
-          cursor: pointer;
-          transition: background 0.15s ease;
-        }
-        .account-badge:hover {
-          background: var(--color-primary-soft);
-        }
 
         /* Overlays */
         .login-overlay {
@@ -422,66 +366,6 @@ export const Connexion: React.FC = () => {
             <span>Se connecter</span>
           </button>
         </form>
-
-        {/* Section Accès Démo pliable (Accordéon) */}
-        <div>
-          <button 
-            type="button" 
-            className="demo-toggle-btn"
-            onClick={() => setShowDemo(!showDemo)}
-          >
-            <span>Accès de démonstration</span>
-            {showDemo ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-
-          <AnimatePresence>
-            {showDemo && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div className="accounts-tip-box mt-3">
-                  <p className="mb-2 text-[11px] leading-relaxed">Cliquez sur un profil ci-dessous pour préremplir le formulaire :</p>
-                  <div className="accounts-list">
-                    <div 
-                      className="account-badge"
-                      onClick={() => {
-                        setValue('email', 'tresorier@medecci.org');
-                        setValue('motDePasse', 'tresorier123');
-                      }}
-                    >
-                      <span className="font-semibold text-blue-700 text-xs">Trésorier (Finances)</span>
-                      <span className="text-[9px] bg-blue-50 text-[#1B4F8A] px-1.5 py-0.5 rounded">tresorier@medecci.org</span>
-                    </div>
-                    <div 
-                      className="account-badge"
-                      onClick={() => {
-                        setValue('email', 'pasteur@medecci.org');
-                        setValue('motDePasse', 'pasteur123');
-                      }}
-                    >
-                      <span className="font-semibold text-amber-700 text-xs">Pasteur (Contenus)</span>
-                      <span className="text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded">pasteur@medecci.org</span>
-                    </div>
-                    <div 
-                      className="account-badge"
-                      onClick={() => {
-                        setValue('email', 'admin@medecci.org');
-                        setValue('motDePasse', 'admin123');
-                      }}
-                    >
-                      <span className="font-semibold text-slate-700 text-xs">Super-Admin</span>
-                      <span className="text-[9px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded">admin@medecci.org</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
     </div>
   );

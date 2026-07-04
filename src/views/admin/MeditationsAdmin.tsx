@@ -5,7 +5,7 @@ import * as zod from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Edit, Trash2, Calendar, User, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import meditationService from '../../services/meditationService';
-import type { Meditation } from '../../stores/useDonneesStore';
+import type { Meditation } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 
 const schemaFormMed = zod.object({

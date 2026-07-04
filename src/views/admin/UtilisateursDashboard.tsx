@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useHabilitationsStore, UtilisateurDashboard } from '../../stores/useHabilitationsStore';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { UserPlus, Edit2, Trash2, Check, X, Shield, Lock, Mail, User, ToggleLeft, ToggleRight, Calendar, Search } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import habilitationService from '../../services/habilitationService';
+import type { UtilisateurDashboard } from '../../types/models';
+import { UserPlus, Edit2, Trash2, Check, X, Shield, ToggleLeft, ToggleRight, Search } from 'lucide-react';
 import { formaterDate } from '../../utils/formateur';
 import { motion, AnimatePresence } from 'framer-motion';
 import PaginationFooter from '../../components/UI/PaginationFooter';
 
 export const UtilisateursDashboard: React.FC = () => {
-  const store = useHabilitationsStore();
-  const { utilisateursDashboard, profils } = store;
-  const { utilisateur: currentUser } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { data: utilisateursDashboard = [] } = useQuery({ queryKey: ['hab-utilisateurs'], queryFn: habilitationService.recupererUtilisateurs });
+  const { data: profils = [] } = useQuery({ queryKey: ['hab-profils'], queryFn: habilitationService.recupererProfils });
+
+  const invalider = () => queryClient.invalidateQueries({ queryKey: ['hab-utilisateurs'] });
+  const ajouterUtilisateurM = useMutation({ mutationFn: habilitationService.ajouterUtilisateur, onSuccess: invalider });
+  const modifierUtilisateurM = useMutation({
+    mutationFn: (v: { id: string; data: Parameters<typeof habilitationService.modifierUtilisateur>[1] }) =>
+      habilitationService.modifierUtilisateur(v.id, v.data),
+    onSuccess: invalider,
+  });
+  const supprimerUtilisateurM = useMutation({ mutationFn: habilitationService.supprimerUtilisateur, onSuccess: invalider });
+  const toggleActifM = useMutation({ mutationFn: habilitationService.toggleActifUtilisateur, onSuccess: invalider });
 
   // États pour la liste, recherche, pagination et loader
   const [enChargement, setEnChargement] = useState(false);
@@ -90,7 +101,6 @@ export const UtilisateursDashboard: React.FC = () => {
 
   const handleAjouterOuModifier = (e: React.FormEvent) => {
     e.preventDefault();
-    const userEmail = currentUser?.email || 'admin@medec-ci.org';
 
     if (!form.profilId) {
       flash(false, 'Veuillez sélectionner un profil.');
@@ -98,8 +108,7 @@ export const UtilisateursDashboard: React.FC = () => {
     }
 
     if (utilisateurEnModification) {
-      // Mode modification
-      const dataUpdate: Partial<Omit<UtilisateurDashboard, 'id' | 'dateCreation'>> = {
+      const dataUpdate: Partial<{ nom: string; prenom: string; email: string; motDePasse: string; profilId: string; actif: boolean }> = {
         nom: form.nom,
         prenom: form.prenom,
         email: form.email,
@@ -115,30 +124,18 @@ export const UtilisateursDashboard: React.FC = () => {
         dataUpdate.motDePasse = form.motDePasse;
       }
 
-      const res = store.modifierUtilisateurDashboard(utilisateurEnModification.id, dataUpdate, userEmail);
-      if (res.success) {
-        flash(true, `L'utilisateur ${form.prenom} ${form.nom} a été mis à jour.`);
-        reinitialiserFormulaire();
-      } else {
-        flash(false, res.error || 'Erreur lors de la modification.');
-      }
+      modifierUtilisateurM.mutate({ id: utilisateurEnModification.id, data: dataUpdate }, {
+        onSuccess: () => { flash(true, `L'utilisateur ${form.prenom} ${form.nom} a été mis à jour.`); reinitialiserFormulaire(); },
+        onError: (err: any) => flash(false, err.message || 'Erreur lors de la modification.'),
+      });
     } else {
-      // Mode création
-      const res = store.ajouterUtilisateurDashboard({
-        nom: form.nom,
-        prenom: form.prenom,
-        email: form.email,
-        motDePasse: form.motDePasse,
-        profilId: form.profilId,
-        actif: form.actif,
-      }, userEmail);
-
-      if (res.success) {
-        flash(true, `L'utilisateur ${form.prenom} ${form.nom} a été créé.`);
-        reinitialiserFormulaire();
-      } else {
-        flash(false, res.error || 'Erreur lors de la création.');
-      }
+      ajouterUtilisateurM.mutate(
+        { nom: form.nom, prenom: form.prenom, email: form.email, motDePasse: form.motDePasse, profilId: form.profilId, actif: form.actif },
+        {
+          onSuccess: () => { flash(true, `L'utilisateur ${form.prenom} ${form.nom} a été créé.`); reinitialiserFormulaire(); },
+          onError: (err: any) => flash(false, err.message || 'Erreur lors de la création.'),
+        }
+      );
     }
   };
 
@@ -148,14 +145,11 @@ export const UtilisateursDashboard: React.FC = () => {
       return;
     }
 
-    const userEmail = currentUser?.email || 'admin@medec-ci.org';
     if (window.confirm(`Voulez-vous vraiment supprimer le compte utilisateur de "${u.prenom} ${u.nom}" ?`)) {
-      const res = store.supprimerUtilisateurDashboard(u.id, userEmail);
-      if (res.success) {
-        flash(true, 'Utilisateur supprimé avec succès.');
-      } else {
-        flash(false, res.error || 'Erreur lors de la suppression.');
-      }
+      supprimerUtilisateurM.mutate(u.id, {
+        onSuccess: () => flash(true, 'Utilisateur supprimé avec succès.'),
+        onError: (err: any) => flash(false, err.message || 'Erreur lors de la suppression.'),
+      });
     }
   };
 
@@ -165,13 +159,10 @@ export const UtilisateursDashboard: React.FC = () => {
       return;
     }
 
-    const userEmail = currentUser?.email || 'admin@medec-ci.org';
-    const res = store.toggleActifUtilisateur(u.id, userEmail);
-    if (res.success) {
-      flash(true, `Statut de l'utilisateur mis à jour.`);
-    } else {
-      flash(false, res.error || 'Erreur lors de la modification du statut.');
-    }
+    toggleActifM.mutate(u.id, {
+      onSuccess: () => flash(true, `Statut de l'utilisateur mis à jour.`),
+      onError: (err: any) => flash(false, err.message || 'Erreur lors de la modification du statut.'),
+    });
   };
 
   // Filtrage

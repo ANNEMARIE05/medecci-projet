@@ -5,7 +5,7 @@ import MeditationsAdmin from '../../../views/admin/MeditationsAdmin';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="MEDITATIONS">
       <MeditationsAdmin />
     </GardeRoute>
   );

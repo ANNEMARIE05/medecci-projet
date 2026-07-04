@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Trash2, Calendar, Phone, X, AlertCircle, Inbox, Eye } from 'lucide-react';
 import suggestionService from '../../services/suggestionService';
-import type { Suggestion } from '../../stores/useDonneesStore';
+import type { Suggestion } from '../../types/models';
 import { formaterDate, formaterTelephone } from '../../utils/formateur';
 
 export const SuggestionsAdmin: React.FC = () => {

@@ -5,7 +5,7 @@ import Archives from '../../../views/admin/Archives';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'TRESORIER']}>
+    <GardeRoute menuCode="ARCHIVES">
       <Archives />
     </GardeRoute>
   );

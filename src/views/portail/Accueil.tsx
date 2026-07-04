@@ -19,13 +19,20 @@ import {
 } from 'lucide-react';
 import { VERSETS_BIBLIQUES, PROGRAMMES_CULTES } from '../../constants';
 import { PHOTOS } from '../../constants/photos';
-import { useDonneesStore } from '../../stores/useDonneesStore';
+import evenementService from '../../services/evenementService';
+import actualiteService from '../../services/actualiteService';
+import type { Evenement, Actualite } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 
 export const Accueil: React.FC = () => {
   const [verset, setVerset] = useState(VERSETS_BIBLIQUES[0]);
-  const evenements = useDonneesStore((state) => state.evenements);
-  const actualites = useDonneesStore((state) => state.actualites);
+  const [evenements, setEvenements] = useState<Evenement[]>([]);
+  const [actualites, setActualites] = useState<Actualite[]>([]);
+
+  useEffect(() => {
+    evenementService.recupererEvenements().then(setEvenements).catch(console.error);
+    actualiteService.recupererActualites().then(setActualites).catch(console.error);
+  }, []);
 
   // Utiliser les vraies photos pour le slider
   // Si PHOTOS est vide, utiliser des fallbacks

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { Search, Plus, Edit2, Trash2, Save, Mic, Video, Volume2, BookOpen } from 'lucide-react';
 import sermonService from '../../services/sermonService';
-import type { Sermon } from '../../stores/useDonneesStore';
+import type { Sermon } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 import { motion, AnimatePresence } from 'framer-motion';
 

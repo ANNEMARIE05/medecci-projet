@@ -1,22 +1,18 @@
-import client from '../api/client';
-import type { Evenement } from '../stores/useDonneesStore';
+import { apiFetch } from '../lib/apiFetch';
+import type { Evenement } from '../types/models';
 
 export const evenementService = {
   recupererEvenements: async (): Promise<Evenement[]> => {
-    const response = await client.get('/evenements');
-    return response.data;
+    return apiFetch<Evenement[]>('/api/evenements');
   },
   creerEvenement: async (evenement: Omit<Evenement, 'id'>): Promise<Evenement> => {
-    const response = await client.post('/evenements', evenement);
-    return response.data;
+    return apiFetch<Evenement>('/api/evenements', { method: 'POST', body: JSON.stringify(evenement) });
   },
   modifierEvenement: async (id: string, evenement: Partial<Evenement>): Promise<Evenement> => {
-    const response = await client.put(`/evenements/${id}`, evenement);
-    return response.data;
+    return apiFetch<Evenement>(`/api/evenements/${id}`, { method: 'PUT', body: JSON.stringify(evenement) });
   },
   supprimerEvenement: async (id: string): Promise<{ success: boolean }> => {
-    const response = await client.delete(`/evenements/${id}`);
-    return response.data;
-  }
+    return apiFetch<{ success: boolean }>(`/api/evenements/${id}`, { method: 'DELETE' });
+  },
 };
 export default evenementService;

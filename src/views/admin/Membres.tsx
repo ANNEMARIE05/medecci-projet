@@ -3,9 +3,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { Search, Plus, Edit2, Trash2, Save, User, ArrowLeft, Coins } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import membreService from '../../services/membreService';
-import type { Membre, Transaction } from '../../stores/useDonneesStore';
-import { useDonneesStore } from '../../stores/useDonneesStore';
+import caisseService from '../../services/caisseService';
+import cotisationService from '../../services/cotisationService';
+import statutService from '../../services/statutService';
+import type { Membre } from '../../types/models';
+import { calculerTotalCaisse, obtenirCotisationsMembre, obtenirSoldeMembreParCaisse } from '../../lib/caisseUtils';
 import { formaterDate, formaterTelephone, formaterDevise } from '../../utils/formateur';
 import PaginationFooter from '../../components/UI/PaginationFooter';
 import confetti from 'canvas-confetti';
@@ -23,8 +27,24 @@ const schemaMembre = zod.object({
 type FormMembreInput = zod.infer<typeof schemaMembre>;
 
 export const Membres: React.FC = () => {
-  const store = useDonneesStore();
-  const { caisses } = store;
+  const queryClient = useQueryClient();
+  const { data: caisses = [] } = useQuery({ queryKey: ['caisses'], queryFn: caisseService.recupererCaisses });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: cotisationService.recupererTransactions });
+  const { data: statuts = [] } = useQuery({ queryKey: ['statuts'], queryFn: statutService.recupererStatuts });
+
+  const invalidateCaisses = () => {
+    queryClient.invalidateQueries({ queryKey: ['caisses'] });
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+  };
+  const enregistrerCotisationMutation = useMutation({
+    mutationFn: (vars: Parameters<typeof cotisationService.enregistrerCotisation>) =>
+      cotisationService.enregistrerCotisation(...vars),
+    onSuccess: invalidateCaisses,
+  });
+  const modifierCotisationMutation = useMutation({
+    mutationFn: (vars: { idTx: string; montant: number }) => cotisationService.modifierCotisation(vars.idTx, vars.montant),
+    onSuccess: invalidateCaisses,
+  });
 
   // États pour l'annuaire
   const [membres, setMembres] = useState<Membre[]>([]);
@@ -95,7 +115,7 @@ export const Membres: React.FC = () => {
       prenom: '',
       telephone: '',
       email: '',
-      statut: store.statuts[0] || 'Fidèle',
+      statut: statuts[0]?.nom || 'Fidèle',
     });
     setModaleOuverte(true);
   };
@@ -150,11 +170,11 @@ export const Membres: React.FC = () => {
   const membreActuel = membres.find(m => m.id === membreDetailId);
 
   // Calculs pour la fiche individuelle
-  let cotisationsParCaisse: any[] = [];
-  let historiqueTransactions: Transaction[] = [];
+  let cotisationsParCaisse: ReturnType<typeof obtenirSoldeMembreParCaisse> = [];
+  let historiqueTransactions: typeof transactions = [];
   if (membreActuel) {
-    cotisationsParCaisse = store.obtenirSoldeMembreParCaisse(membreActuel.id);
-    historiqueTransactions = store.obtenirCotisationsMembre(membreActuel.id);
+    cotisationsParCaisse = obtenirSoldeMembreParCaisse(caisses, membreActuel.id);
+    historiqueTransactions = obtenirCotisationsMembre(transactions, membreActuel.id);
   }
 
   const totalCotiseParMembre = cotisationsParCaisse.reduce((sum, item) => sum + item.montant, 0);
@@ -189,7 +209,7 @@ export const Membres: React.FC = () => {
     }
 
     const caisseActive = caisses.find(c => c.id === caisseCible);
-    const soldeActuel = store.calculerTotalCaisse(caisseCible);
+    const soldeActuel = calculerTotalCaisse(caisseActive);
     const objectif = caisseActive?.objectif || 0;
     if (objectif > 0) {
       const reste = objectif - soldeActuel;
@@ -204,22 +224,22 @@ export const Membres: React.FC = () => {
     }
 
     if (membreDetailId) {
-      const res = store.enregistrerCotisation(caisseCible, membreDetailId, valMontant, '');
-      if (res.success) {
-        confetti({
-          particleCount: 120,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#1B4F8A', '#2563EB', '#2E9E6B']
-        });
+      enregistrerCotisationMutation.mutate([caisseCible, membreDetailId, valMontant, ''], {
+        onSuccess: () => {
+          confetti({
+            particleCount: 120,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#1B4F8A', '#2563EB', '#2E9E6B']
+          });
 
-        setDirectSuccess(`Versement de ${formaterDevise(valMontant)} enregistré avec succès !`);
-        setMontantDirect('');
-        setCaisseCible('');
-        setTimeout(() => setDirectSuccess(''), 3000);
-      } else {
-        setDirectError(res.error || "Erreur de versement");
-      }
+          setDirectSuccess(`Versement de ${formaterDevise(valMontant)} enregistré avec succès !`);
+          setMontantDirect('');
+          setCaisseCible('');
+          setTimeout(() => setDirectSuccess(''), 3000);
+        },
+        onError: (err: any) => setDirectError(err.message || 'Erreur de versement'),
+      });
     }
   };
 
@@ -237,7 +257,7 @@ export const Membres: React.FC = () => {
 
     const caisse = caisses.find(c => c.id === txAModifier.idCaisse);
     if (caisse && caisse.objectif > 0) {
-      const soldeActuel = store.calculerTotalCaisse(txAModifier.idCaisse);
+      const soldeActuel = calculerTotalCaisse(caisse);
       const resteAutorise = caisse.objectif - (soldeActuel - txAModifier.montant);
       if (valMontant > resteAutorise) {
         setEditError(`Ce montant dépasse l'objectif de la caisse. Le montant maximum autorisé est de ${formaterDevise(resteAutorise)}.`);
@@ -245,15 +265,15 @@ export const Membres: React.FC = () => {
       }
     }
 
-    const res = store.modifierCotisation(txAModifier.id, valMontant);
-    if (res.success) {
-      setEditSuccess('Le versement a été modifié.');
-      setTimeout(() => {
-        setTxAModifier(null);
-      }, 1000);
-    } else {
-      setEditError(res.error || "Erreur de versement");
-    }
+    modifierCotisationMutation.mutate({ idTx: txAModifier.id, montant: valMontant }, {
+      onSuccess: () => {
+        setEditSuccess('Le versement a été modifié.');
+        setTimeout(() => {
+          setTxAModifier(null);
+        }, 1000);
+      },
+      onError: (err: any) => setEditError(err.message || 'Erreur de versement'),
+    });
   };
 
   // RENDER FICHE DÉTAILLÉE D'UN MEMBRE (Fiche Individuelle)
@@ -722,8 +742,8 @@ export const Membres: React.FC = () => {
                     {...register('statut')}
                     className="frm-inp"
                   >
-                    {store.statuts.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                    {statuts.map((s) => (
+                      <option key={s.id} value={s.nom}>{s.nom}</option>
                     ))}
                   </select>
                 </div>

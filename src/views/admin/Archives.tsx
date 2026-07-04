@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
-import type { Caisse } from '../../stores/useDonneesStore';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import caisseService from '../../services/caisseService';
+import type { Caisse } from '../../types/models';
+import { calculerTotalCaisse } from '../../lib/caisseUtils';
 import { formaterDevise } from '../../utils/formateur';
 import PaginationFooter from '../../components/UI/PaginationFooter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Folder, Search, RefreshCw } from 'lucide-react';
 
 export const Archives: React.FC = () => {
-  const store = useDonneesStore();
-  const { caisses } = store;
+  const queryClient = useQueryClient();
+  const { data: caisses = [] } = useQuery({ queryKey: ['caisses'], queryFn: caisseService.recupererCaisses });
+
+  const desarchiverMutation = useMutation({
+    mutationFn: caisseService.desarchiverCaisse,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['caisses'] }),
+  });
 
   // États locaux
   const [recherche, setRecherche] = useState('');
@@ -19,7 +26,7 @@ export const Archives: React.FC = () => {
   const [caisseADesarchiver, setCaisseADesarchiver] = useState<Caisse | null>(null);
 
   // Filtrage caisses archivées uniquement
-  const caissesArchivees = caisses.filter(c => 
+  const caissesArchivees = caisses.filter(c =>
     c.archivee === true &&
     (c.nom.toLowerCase().includes(recherche.toLowerCase()) ||
      c.description.toLowerCase().includes(recherche.toLowerCase()) ||
@@ -41,15 +48,14 @@ export const Archives: React.FC = () => {
 
   const handleDesarchiver = () => {
     if (!caisseADesarchiver) return;
-    const res = store.desarchiverCaisse(caisseADesarchiver.id);
-    if (res.success) {
-      setCaisseADesarchiver(null);
-    }
+    desarchiverMutation.mutate(caisseADesarchiver.id, {
+      onSuccess: () => setCaisseADesarchiver(null),
+    });
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
+
       {/* Barre de Recherche / Filtre */}
       <div className="flt-bar" style={{ background: 'var(--color-bg-card)', borderRadius: 'var(--radius-md)', padding: '16px 20px', boxShadow: 'var(--shadow-sm)' }}>
         <div className="flt-left">
@@ -82,7 +88,7 @@ export const Archives: React.FC = () => {
           </div>
         ) : (
           itemsPaginees.map((c) => {
-            const solde = store.calculerTotalCaisse(c.id);
+            const solde = calculerTotalCaisse(c);
             return (
               <div key={c.id} className="caisse-card" style={{ opacity: 0.85 }}>
                 <div className="caisse-title-row">
@@ -91,7 +97,7 @@ export const Archives: React.FC = () => {
                   </span>
                 </div>
                 <p className="caisse-desc">{c.description || 'Aucune description disponible.'}</p>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--color-dark-muted)', fontWeight: '600' }}>Solde Préservé</span>
                   <p className="caisse-sum" style={{ color: 'var(--color-dark-muted)' }}>{formaterDevise(solde)}</p>

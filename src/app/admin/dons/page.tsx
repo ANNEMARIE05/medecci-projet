@@ -5,7 +5,7 @@ import DonsAdmin from '../../../views/admin/DonsAdmin';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'TRESORIER']}>
+    <GardeRoute menuCode="DONS">
       <DonsAdmin />
     </GardeRoute>
   );

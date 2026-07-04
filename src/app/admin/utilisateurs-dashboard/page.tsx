@@ -5,7 +5,7 @@ import UtilisateursDashboard from '../../../views/admin/UtilisateursDashboard';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN']}>
+    <GardeRoute menuCode="UTILISATEURS">
       <UtilisateursDashboard />
     </GardeRoute>
   );

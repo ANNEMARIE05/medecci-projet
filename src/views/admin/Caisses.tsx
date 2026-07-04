@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Folder, 
-  Search, 
-  Plus, 
-  Edit2, 
-  Archive, 
-  ArrowLeft, 
+import {
+  Folder,
+  Search,
+  Plus,
+  Edit2,
+  Archive,
+  ArrowLeft,
   AlertCircle
 } from 'lucide-react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
-import type { Caisse, Transaction } from '../../stores/useDonneesStore';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import caisseService from '../../services/caisseService';
+import cotisationService from '../../services/cotisationService';
+import membreService from '../../services/membreService';
+import categorieService from '../../services/categorieService';
+import type { Caisse } from '../../types/models';
+import { calculerTotalCaisse } from '../../lib/caisseUtils';
 import { formaterDevise, formaterDate } from '../../utils/formateur';
 import PaginationFooter from '../../components/UI/PaginationFooter';
 import confetti from 'canvas-confetti';
@@ -24,29 +29,35 @@ const responsablesOptions = [
   "Diacre Jean-Pierre"
 ];
 
-const typesDonOptions = [
-  "Dîme",
-  "Offrande",
-  "Construction",
-  "Social",
-  "Mission",
-  "Action de Grâce",
-  "Autre"
-];
-
-const modesPaiementOptions = [
-  "Wave",
-  "Orange Money",
-  "MTN MoMo",
-  "Moov Money",
-  "Carte Bancaire",
-  "Espèces",
-  "Chèque"
-];
-
 export const Caisses: React.FC = () => {
-  const store = useDonneesStore();
-  const { caisses, membres, transactions, categories } = store;
+  const queryClient = useQueryClient();
+  const { data: caisses = [] } = useQuery({ queryKey: ['caisses'], queryFn: caisseService.recupererCaisses });
+  const { data: membres = [] } = useQuery({ queryKey: ['membres'], queryFn: membreService.recupererMembres });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: cotisationService.recupererTransactions });
+  const { data: categoriesData = [] } = useQuery({ queryKey: ['categories'], queryFn: categorieService.recupererCategories });
+  const categories = categoriesData.map((c) => c.nom);
+
+  const invalidateCaisses = () => {
+    queryClient.invalidateQueries({ queryKey: ['caisses'] });
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+  };
+
+  const creerCaisseMutation = useMutation({ mutationFn: caisseService.creerCaisse, onSuccess: invalidateCaisses });
+  const modifierCaisseMutation = useMutation({
+    mutationFn: (vars: { id: string; data: Parameters<typeof caisseService.modifierCaisse>[1] }) =>
+      caisseService.modifierCaisse(vars.id, vars.data),
+    onSuccess: invalidateCaisses,
+  });
+  const archiverMutation = useMutation({ mutationFn: caisseService.archiverCaisse, onSuccess: invalidateCaisses });
+  const enregistrerCotisationMutation = useMutation({
+    mutationFn: (vars: Parameters<typeof cotisationService.enregistrerCotisation>) =>
+      cotisationService.enregistrerCotisation(...vars),
+    onSuccess: invalidateCaisses,
+  });
+  const modifierCotisationMutation = useMutation({
+    mutationFn: (vars: { idTx: string; montant: number }) => cotisationService.modifierCotisation(vars.idTx, vars.montant),
+    onSuccess: invalidateCaisses,
+  });
 
   // Navigation locale
   const [caisseDetailId, setCaisseDetailId] = useState<string | null>(null);
@@ -84,14 +95,12 @@ export const Caisses: React.FC = () => {
   // ── ÉTATS POUR LES DÉTAILS DE LA CAISSE ──
   const [rechercheCotisant, setRechercheCotisant] = useState('');
   const [pageCaisseTx, setPageCaisseTx] = useState(1);
-  const [taillePageCaisseTx, setTaillePageCaisseTx] = useState(10); // Rendre le tableau bien grand (10 par page)
+  const [taillePageCaisseTx, setTaillePageCaisseTx] = useState(10);
 
   // Modale pour enregistrer un versement
   const [showEnregistrerModal, setShowEnregistrerModal] = useState(false);
   const [membreCotisant, setMembreCotisant] = useState('');
   const [montantCotise, setMontantCotise] = useState('');
-  const [typeDonSelectionne, setTypeDonSelectionne] = useState(typesDonOptions[0]);
-  const [modePaiementSelectionne, setModePaiementSelectionne] = useState(modesPaiementOptions[4]); // Espèces par défaut
   const [commentaireCotise, setCommentaireCotise] = useState('');
   const [cotiseError, setCotiseError] = useState('');
   const [cotiseSuccess, setCotiseSuccess] = useState('');
@@ -99,9 +108,6 @@ export const Caisses: React.FC = () => {
   // États pour la modification d'un versement (traçabilité)
   const [txAModifier, setTxAModifier] = useState<any>(null);
   const [nouveauMontantModif, setNouveauMontantModif] = useState('');
-  const [nouveauTypeDonModif, setNouveauTypeDonModif] = useState('');
-  const [nouveauModePaiementModif, setNouveauModePaiementModif] = useState('');
-  const [nouveauCommentaireModif, setNouveauCommentaireModif] = useState('');
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
 
@@ -113,8 +119,6 @@ export const Caisses: React.FC = () => {
     setCotiseSuccess('');
     setMembreCotisant('');
     setMontantCotise('');
-    setTypeDonSelectionne(typesDonOptions[0]);
-    setModePaiementSelectionne(modesPaiementOptions[4]);
     setCommentaireCotise('');
     setTxAModifier(null);
     setNouveauMontantModif('');
@@ -143,30 +147,32 @@ export const Caisses: React.FC = () => {
       return;
     }
 
-    const res = store.creerCaisse(
-      creerNom,
-      creerDesc,
-      creerCode,
-      creerResponsable,
-      Number(creerObjectif),
-      creerCategorie
+    creerCaisseMutation.mutate(
+      {
+        nom: creerNom,
+        description: creerDesc,
+        code: creerCode,
+        responsable: creerResponsable,
+        objectif: Number(creerObjectif),
+        categorie: creerCategorie,
+      },
+      {
+        onSuccess: () => {
+          setCreerNom('');
+          setCreerCode('');
+          setCreerResponsable('');
+          setCreerObjectif('');
+          setCreerCategorie('');
+          setCreerDesc('');
+          setCreerSuccess('La caisse a été créée avec succès.');
+          setTimeout(() => {
+            setCreerSuccess('');
+            setShowCreerModal(false);
+          }, 1000);
+        },
+        onError: (err: any) => setCreerError(err.message || 'Erreur de création'),
+      }
     );
-
-    if (res.success) {
-      setCreerNom('');
-      setCreerCode('');
-      setCreerResponsable('');
-      setCreerObjectif('');
-      setCreerCategorie('');
-      setCreerDesc('');
-      setCreerSuccess('La caisse a été créée avec succès.');
-      setTimeout(() => {
-        setCreerSuccess('');
-        setShowCreerModal(false);
-      }, 1000);
-    } else {
-      setCreerError(res.error || "Erreur de création");
-    }
   };
 
   // Action : Modifier caisse
@@ -182,35 +188,40 @@ export const Caisses: React.FC = () => {
       return;
     }
 
-    const res = store.modifierCaisse(
-      caisseDetailId,
-      modifNom,
-      modifDesc,
-      modifCode,
-      modifResponsable,
-      Number(modifObjectif),
-      modifCategorie
+    modifierCaisseMutation.mutate(
+      {
+        id: caisseDetailId,
+        data: {
+          nom: modifNom,
+          description: modifDesc,
+          code: modifCode,
+          responsable: modifResponsable,
+          objectif: Number(modifObjectif),
+          categorie: modifCategorie,
+        },
+      },
+      {
+        onSuccess: () => {
+          setModifSuccess('La caisse a été modifiée avec succès.');
+          setTimeout(() => {
+            setModifSuccess('');
+            setShowModifierModal(false);
+          }, 1000);
+        },
+        onError: (err: any) => setModifError(err.message || 'Erreur de modification'),
+      }
     );
-
-    if (res.success) {
-      setModifSuccess('La caisse a été modifiée avec succès.');
-      setTimeout(() => {
-        setModifSuccess('');
-        setShowModifierModal(false);
-      }, 1000);
-    } else {
-      setModifError(res.error || "Erreur de modification");
-    }
   };
 
   // Action : Archiver caisse
   const executerArchivage = () => {
     if (!caisseAArchiver) return;
-    const res = store.archiverCaisse(caisseAArchiver.id);
-    if (res.success) {
-      setCaisseAArchiver(null);
-      setCaisseDetailId(null);
-    }
+    archiverMutation.mutate(caisseAArchiver.id, {
+      onSuccess: () => {
+        setCaisseAArchiver(null);
+        setCaisseDetailId(null);
+      },
+    });
   };
 
   // Action : Enregistrer cotisation (versement)
@@ -230,51 +241,31 @@ export const Caisses: React.FC = () => {
       setCotiseError('Veuillez saisir un montant supérieur à 0.');
       return;
     }
-    const soldeActuel = store.calculerTotalCaisse(caisseActive.id);
-    const objectif = caisseActive.objectif || 0;
-    if (objectif > 0) {
-      const reste = objectif - soldeActuel;
-      if (reste <= 0) {
-        setCotiseError("L'objectif de cette caisse est déjà atteint. Aucun versement supplémentaire n'est autorisé.");
-        return;
-      }
-      if (valMontant > reste) {
-        setCotiseError(`Ce versement dépasse l'objectif de la caisse. Le montant maximum autorisé est de ${formaterDevise(reste)}.`);
-        return;
-      }
-    }
 
-    const res = store.enregistrerCotisation(
-      caisseActive.id,
-      membreCotisant,
-      valMontant,
-      commentaireCotise,
-      typeDonSelectionne,
-      modePaiementSelectionne
+    enregistrerCotisationMutation.mutate(
+      [caisseActive.id, membreCotisant, valMontant, commentaireCotise],
+      {
+        onSuccess: () => {
+          confetti({
+            particleCount: 120,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#1B4F8A', '#2563EB', '#2E9E6B']
+          });
+
+          setCotiseSuccess(`Versement de ${formaterDevise(valMontant)} enregistré avec succès !`);
+          setMontantCotise('');
+          setMembreCotisant('');
+          setCommentaireCotise('');
+
+          setTimeout(() => {
+            setCotiseSuccess('');
+            setShowEnregistrerModal(false);
+          }, 1000);
+        },
+        onError: (err: any) => setCotiseError(err.message || 'Erreur de versement'),
+      }
     );
-
-    if (res.success) {
-      confetti({
-        particleCount: 120,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#1B4F8A', '#2563EB', '#2E9E6B']
-      });
-
-      setCotiseSuccess(`Versement de ${formaterDevise(valMontant)} enregistré avec succès !`);
-      setMontantCotise('');
-      setMembreCotisant('');
-      setCommentaireCotise('');
-      setTypeDonSelectionne(typesDonOptions[0]);
-      setModePaiementSelectionne(modesPaiementOptions[4]);
-
-      setTimeout(() => {
-        setCotiseSuccess('');
-        setShowEnregistrerModal(false);
-      }, 1000);
-    } else {
-      setCotiseError(res.error || "Erreur de versement");
-    }
   };
 
   const gererSoumissionModifTx = (e: React.FormEvent) => {
@@ -290,36 +281,24 @@ export const Caisses: React.FC = () => {
       return;
     }
 
-    const soldeActuel = store.calculerTotalCaisse(caisseActive.id);
-    const resteAutorise = caisseActive.objectif - (soldeActuel - txAModifier.montant);
-    if (caisseActive.objectif > 0 && valMontant > resteAutorise) {
-      setEditError(`Ce montant dépasse l'objectif de la caisse. Le montant maximum autorisé est de ${formaterDevise(resteAutorise)}.`);
-      return;
-    }
-
-    const res = store.modifierCotisation(txAModifier.id, valMontant);
-    if (res.success) {
-      // Mettre à jour les champs additionnels directement dans la transaction
-      const txIndex = transactions.findIndex(t => t.id === txAModifier.id);
-      if (txIndex !== -1) {
-        transactions[txIndex].typeDon = nouveauTypeDonModif;
-        transactions[txIndex].modePaiement = nouveauModePaiementModif;
-        transactions[txIndex].commentaire = nouveauCommentaireModif;
+    modifierCotisationMutation.mutate(
+      { idTx: txAModifier.id, montant: valMontant },
+      {
+        onSuccess: () => {
+          setEditSuccess('Le versement a été modifié.');
+          setTimeout(() => {
+            setTxAModifier(null);
+          }, 1000);
+        },
+        onError: (err: any) => setEditError(err.message || 'Erreur de versement'),
       }
-
-      setEditSuccess('Le versement a été modifié.');
-      setTimeout(() => {
-        setTxAModifier(null);
-      }, 1000);
-    } else {
-      setEditError(res.error || "Erreur de versement");
-    }
+    );
   };
 
   // ────────── FILTRAGE ET PAGINATION ──────────
 
   // 1. Liste des caisses actives
-  const caissesFiltrees = caisses.filter(c => 
+  const caissesFiltrees = caisses.filter(c =>
     c.archivee !== true &&
     (c.nom.toLowerCase().includes(rechercheCaisse.toLowerCase()) ||
      c.description.toLowerCase().includes(rechercheCaisse.toLowerCase()) ||
@@ -339,9 +318,9 @@ export const Caisses: React.FC = () => {
   const caissesPaginees = caissesFiltrees.slice(indexPremier, indexDernier);
 
   // 2. Transactions d'une caisse
-  let transactionsCaisse: Transaction[] = [];
+  let transactionsCaisse: typeof transactions = [];
   if (caisseActive) {
-    transactionsCaisse = transactions.filter(t => 
+    transactionsCaisse = transactions.filter(t =>
       t.idCaisse === caisseDetailId &&
       obtenirNomMembre(t.idMembre).toLowerCase().includes(rechercheCotisant.toLowerCase())
     );
@@ -405,7 +384,7 @@ export const Caisses: React.FC = () => {
             </div>
           ) : (
             caissesPaginees.map((c) => {
-              const total = store.calculerTotalCaisse(c.id);
+              const total = calculerTotalCaisse(c);
               return (
                 <div key={c.id} className="caisse-card">
                   <div className="caisse-title-row">
@@ -413,8 +392,8 @@ export const Caisses: React.FC = () => {
                       <span className="caisse-name">{c.nom}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button 
-                        className="btn-edit" 
+                      <button
+                        className="btn-edit"
                         title="Modifier"
                         style={{ padding: '4px 6px' }}
                         onClick={(e) => {
@@ -434,8 +413,8 @@ export const Caisses: React.FC = () => {
                         <Edit2 className="h-3 w-3" />
                       </button>
 
-                      <button 
-                        className="btn-edit" 
+                      <button
+                        className="btn-edit"
                         title="Archiver"
                         style={{ padding: '4px 6px', borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
                         onClick={(e) => {
@@ -448,7 +427,7 @@ export const Caisses: React.FC = () => {
                     </div>
                   </div>
                   <p className="caisse-desc">{c.description || 'Aucune description disponible.'}</p>
-                  
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
                     <span style={{ fontSize: '11px', color: 'var(--color-dark-muted)', fontWeight: '600' }}>Solde Collecté</span>
                     <p className="caisse-sum" style={{ margin: 0 }}>{formaterDevise(total)}</p>
@@ -594,7 +573,7 @@ export const Caisses: React.FC = () => {
   // VUE DÉTAILLÉE D'UNE CAISSE SPECIFIQUE
   if (!caisseActive) return null;
 
-  const soldeActuel = store.calculerTotalCaisse(caisseActive.id);
+  const soldeActuel = calculerTotalCaisse(caisseActive);
   const objectif = caisseActive.objectif || 0;
   const progressPourcent = objectif > 0 ? Math.min(100, Math.round((soldeActuel / objectif) * 100)) : 0;
 
@@ -613,8 +592,6 @@ export const Caisses: React.FC = () => {
               setMembreCotisant('');
               setMontantCotise('');
               setCommentaireCotise('');
-              setTypeDonSelectionne(typesDonOptions[0]);
-              setModePaiementSelectionne(modesPaiementOptions[4]);
               setCotiseError('');
               setCotiseSuccess('');
               setShowEnregistrerModal(true);
@@ -776,9 +753,6 @@ export const Caisses: React.FC = () => {
                         onClick={() => {
                           setTxAModifier(tx);
                           setNouveauMontantModif(tx.montant.toString());
-                          setNouveauTypeDonModif(tx.typeDon || 'Don');
-                          setNouveauModePaiementModif(tx.modePaiement || 'Espèces');
-                          setNouveauCommentaireModif(tx.commentaire || '');
                           setEditError('');
                           setEditSuccess('');
                         }}
@@ -842,8 +816,6 @@ export const Caisses: React.FC = () => {
                       ))}
                     </select>
                   </div>
-
-
 
                   <div className="frm-grp frm-span2">
                     <label className="frm-lbl">Montant versé (FCFA) *</label>
@@ -1031,8 +1003,6 @@ export const Caisses: React.FC = () => {
                     <span className="frm-lbl">Fidèle</span>
                     <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--color-dark)', margin: 0 }}>{obtenirNomMembre(txAModifier.idMembre)}</p>
                   </div>
-                  
-
 
                   <div className="frm-grp frm-span2">
                     <label className="frm-lbl">Montant du versement (FCFA) *</label>
@@ -1043,16 +1013,6 @@ export const Caisses: React.FC = () => {
                       className="frm-inp"
                       min="1"
                       required
-                    />
-                  </div>
-
-                  <div className="frm-grp frm-span2">
-                    <label className="frm-lbl">Commentaire / Notes</label>
-                    <input
-                      type="text"
-                      value={nouveauCommentaireModif}
-                      onChange={(e) => setNouveauCommentaireModif(e.target.value)}
-                      className="frm-inp"
                     />
                   </div>
                 </div>

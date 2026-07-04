@@ -1,22 +1,18 @@
-import client from '../api/client';
-import type { Meditation } from '../stores/useDonneesStore';
+import { apiFetch } from '../lib/apiFetch';
+import type { Meditation } from '../types/models';
 
 export const meditationService = {
   recupererMeditations: async (): Promise<Meditation[]> => {
-    const response = await client.get('/meditations');
-    return response.data;
+    return apiFetch<Meditation[]>('/api/meditations');
   },
   ajouterMeditation: async (med: Omit<Meditation, 'id' | 'date'>): Promise<Meditation> => {
-    const response = await client.post('/meditations', med);
-    return response.data;
+    return apiFetch<Meditation>('/api/meditations', { method: 'POST', body: JSON.stringify(med) });
   },
   modifierMeditation: async (id: string, med: Partial<Meditation>): Promise<Meditation> => {
-    const response = await client.put(`/meditations/${id}`, med);
-    return response.data;
+    return apiFetch<Meditation>(`/api/meditations/${id}`, { method: 'PUT', body: JSON.stringify(med) });
   },
   supprimerMeditation: async (id: string): Promise<{ success: boolean }> => {
-    const response = await client.delete(`/meditations/${id}`);
-    return response.data;
-  }
+    return apiFetch<{ success: boolean }>(`/api/meditations/${id}`, { method: 'DELETE' });
+  },
 };
 export default meditationService;

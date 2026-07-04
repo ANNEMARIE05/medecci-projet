@@ -11,8 +11,15 @@ import {
   Edit2, 
   Receipt
 } from 'lucide-react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import caisseService from '../../services/caisseService';
+import membreService from '../../services/membreService';
+import cotisationService from '../../services/cotisationService';
+import donService from '../../services/donService';
+import priereService from '../../services/priereService';
+import evenementService from '../../services/evenementService';
+import { usePermissions } from '../../hooks/usePermissions';
+import { calculerTotalCaisse, calculerTotalGeneral } from '../../lib/caisseUtils';
 import { formaterDevise, formaterDate } from '../../utils/formateur';
 import Link from 'next/link';
 import PaginationFooter from '../../components/UI/PaginationFooter';
@@ -20,26 +27,27 @@ import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const TableauBord: React.FC = () => {
-  const { utilisateur } = useAuthStore();
-  const roleUtilisateur = utilisateur?.role || 'PASTEUR';
+  const { peut } = usePermissions();
+  const peutFinance = peut('CAISSES', 'VOIR');
+  const peutPlateforme = peut('ACTUALITES', 'VOIR') || peut('SERMONS', 'VOIR') || peut('DONS', 'VOIR');
 
-  // Vue active (uniquement pour le super-admin ADMIN qui peut switcher)
+  // Vue active (uniquement affichable si l'utilisateur a les deux accès)
   const [vueActive, setVueActive] = useState<'finance' | 'plateforme'>(
-    roleUtilisateur === 'TRESORIER' ? 'finance' : 'plateforme'
+    peutFinance && !peutPlateforme ? 'finance' : 'plateforme'
   );
 
   useEffect(() => {
-    if (roleUtilisateur === 'TRESORIER') {
+    if (peutFinance && !peutPlateforme) {
       setVueActive('finance');
-    } else {
+    } else if (!peutFinance && peutPlateforme) {
       setVueActive('plateforme');
     }
-  }, [roleUtilisateur]);
+  }, [peutFinance, peutPlateforme]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Sélecteur de vue pour l'ADMIN */}
-      {roleUtilisateur === 'ADMIN' && (
+      {/* Sélecteur de vue si les deux univers sont accessibles */}
+      {peutFinance && peutPlateforme && (
         <div style={{ display: 'flex', background: 'rgba(27,79,138,0.06)', padding: '4px', borderRadius: '7px', width: 'fit-content', border: '1px solid var(--color-border)' }}>
           <button
             onClick={() => setVueActive('plateforme')}
@@ -83,8 +91,24 @@ export const TableauBord: React.FC = () => {
 // 1. DASHBOARD FINANCIER (Vue Trésorier)
 // ────────────────────────────────────────────────────────
 const DashboardFinance: React.FC = () => {
-  const store = useDonneesStore();
-  const { caisses, membres, transactions } = store;
+  const queryClient = useQueryClient();
+  const { data: caisses = [] } = useQuery({ queryKey: ['caisses'], queryFn: caisseService.recupererCaisses });
+  const { data: membres = [] } = useQuery({ queryKey: ['membres'], queryFn: membreService.recupererMembres });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: cotisationService.recupererTransactions });
+
+  const invalidateCaisses = () => {
+    queryClient.invalidateQueries({ queryKey: ['caisses'] });
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+  };
+  const enregistrerCotisationMutation = useMutation({
+    mutationFn: (vars: Parameters<typeof cotisationService.enregistrerCotisation>) =>
+      cotisationService.enregistrerCotisation(...vars),
+    onSuccess: invalidateCaisses,
+  });
+  const modifierCotisationMutation = useMutation({
+    mutationFn: (vars: { idTx: string; montant: number }) => cotisationService.modifierCotisation(vars.idTx, vars.montant),
+    onSuccess: invalidateCaisses,
+  });
 
   // États versement rapide
   const [membreSelectionne, setMembreSelectionne] = useState('');
@@ -107,7 +131,7 @@ const DashboardFinance: React.FC = () => {
   const [editSuccess, setEditSuccess] = useState('');
 
   // Statistiques financières
-  const totalGeneral = store.calculerTotalGeneral();
+  const totalGeneral = calculerTotalGeneral(caisses);
   const nombreCaisses = caisses.filter(c => !c.archivee).length;
   const nombreMembres = membres.length;
   const derniereTx = transactions[0];
@@ -136,7 +160,7 @@ const DashboardFinance: React.FC = () => {
 
     const caisse = caisses.find(c => c.id === txAModifier.idCaisse);
     if (caisse && caisse.objectif > 0) {
-      const soldeActuel = store.calculerTotalCaisse(txAModifier.idCaisse);
+      const soldeActuel = calculerTotalCaisse(caisse);
       const resteAutorise = caisse.objectif - (soldeActuel - txAModifier.montant);
       if (valMontant > resteAutorise) {
         setEditError(`Ce montant dépasse l'objectif de la caisse. Le montant maximum autorisé est de ${formaterDevise(resteAutorise)}.`);
@@ -144,15 +168,15 @@ const DashboardFinance: React.FC = () => {
       }
     }
 
-    const res = store.modifierCotisation(txAModifier.id, valMontant);
-    if (res.success) {
-      setEditSuccess('Le versement a été modifié avec succès.');
-      setTimeout(() => {
-        setTxAModifier(null);
-      }, 1000);
-    } else {
-      setEditError(res.error || "Erreur de modification");
-    }
+    modifierCotisationMutation.mutate({ idTx: txAModifier.id, montant: valMontant }, {
+      onSuccess: () => {
+        setEditSuccess('Le versement a été modifié avec succès.');
+        setTimeout(() => {
+          setTxAModifier(null);
+        }, 1000);
+      },
+      onError: (err: any) => setEditError(err.message || 'Erreur de modification'),
+    });
   };
 
   const gererSoumissionCotisation = (e: React.FormEvent) => {
@@ -175,7 +199,7 @@ const DashboardFinance: React.FC = () => {
     }
 
     const caisseActive = caisses.find(c => c.id === caisseSelectionnee);
-    const soldeActuel = store.calculerTotalCaisse(caisseSelectionnee);
+    const soldeActuel = calculerTotalCaisse(caisseActive);
     const objectif = caisseActive?.objectif || 0;
     if (objectif > 0) {
       const reste = objectif - soldeActuel;
@@ -190,26 +214,28 @@ const DashboardFinance: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const resultat = store.enregistrerCotisation(caisseSelectionnee, membreSelectionne, montantNum, '');
-    setIsSubmitting(false);
+    enregistrerCotisationMutation.mutate([caisseSelectionnee, membreSelectionne, montantNum, ''], {
+      onSuccess: () => {
+        setIsSubmitting(false);
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#1B4F8A', '#2563EB', '#2E9E6B', '#E8A020']
+        });
 
-    if (resultat.success) {
-      confetti({
-        particleCount: 150,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#1B4F8A', '#2563EB', '#2E9E6B', '#E8A020']
-      });
+        setFormSuccess(`Versement de ${formaterDevise(montantNum)} enregistré !`);
+        setMontant('');
+        setMembreSelectionne('');
+        setCaisseSelectionnee('');
 
-      setFormSuccess(`Versement de ${formaterDevise(montantNum)} enregistré !`);
-      setMontant('');
-      setMembreSelectionne('');
-      setCaisseSelectionnee('');
-      
-      setTimeout(() => setFormSuccess(''), 3000);
-    } else {
-      setFormError(resultat.error || "Erreur lors de l'enregistrement");
-    }
+        setTimeout(() => setFormSuccess(''), 3000);
+      },
+      onError: (err: any) => {
+        setIsSubmitting(false);
+        setFormError(err.message || "Erreur lors de l'enregistrement");
+      },
+    });
   };
 
   // Filtrer les transactions
@@ -359,7 +385,7 @@ const DashboardFinance: React.FC = () => {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '200px', overflowY: 'auto' }} className="no-scrollbar">
             {caisses.map((caisse) => {
-              const totalCaisse = store.calculerTotalCaisse(caisse.id);
+              const totalCaisse = calculerTotalCaisse(caisse);
               const pourcentage = totalGeneral > 0 ? (totalCaisse / totalGeneral) * 100 : 0;
               
               let barColorClass = 'full';
@@ -591,7 +617,10 @@ const DashboardFinance: React.FC = () => {
 // 2. DASHBOARD DE LA PLATEFORME (Vue Pasteur / Admin)
 // ────────────────────────────────────────────────────────
 const DashboardPlateforme: React.FC = () => {
-  const { membres, dons, demandesPriere, evenements } = useDonneesStore();
+  const { data: membres = [] } = useQuery({ queryKey: ['membres'], queryFn: membreService.recupererMembres });
+  const { data: dons = [] } = useQuery({ queryKey: ['dons'], queryFn: donService.recupererDons });
+  const { data: demandesPriere = [] } = useQuery({ queryKey: ['prieres'], queryFn: priereService.recupererDemandesPriere });
+  const { data: evenements = [] } = useQuery({ queryKey: ['evenements'], queryFn: evenementService.recupererEvenements });
 
   // Statistiques
   const totalMembres = membres.length;

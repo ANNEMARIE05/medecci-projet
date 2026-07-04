@@ -5,7 +5,7 @@ import SuggestionsAdmin from '../../../views/admin/SuggestionsAdmin';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="SUGGESTIONS">
       <SuggestionsAdmin />
     </GardeRoute>
   );

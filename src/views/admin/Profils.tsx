@@ -1,14 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useHabilitationsStore, Profil, HabilitationProfil } from '../../stores/useHabilitationsStore';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { ShieldCheck, Plus, Edit2, Trash2, Check, X, Key, Search, ShieldAlert } from 'lucide-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import habilitationService from '../../services/habilitationService';
+import type { Profil, HabilitationProfil } from '../../types/models';
+import { ShieldCheck, Plus, Edit2, Trash2, Check, X, Key, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PaginationFooter from '../../components/UI/PaginationFooter';
 
 export const Profils: React.FC = () => {
-  const store = useHabilitationsStore();
-  const { profils, menus, actions } = store;
-  const { utilisateur } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { data: profils = [] } = useQuery({ queryKey: ['hab-profils'], queryFn: habilitationService.recupererProfils });
+  const { data: menus = [] } = useQuery({ queryKey: ['hab-menus'], queryFn: habilitationService.recupererMenus });
+  const { data: actions = [] } = useQuery({ queryKey: ['hab-actions'], queryFn: habilitationService.recupererActions });
+
+  const invalider = () => queryClient.invalidateQueries({ queryKey: ['hab-profils'] });
+  const ajouterProfilM = useMutation({ mutationFn: habilitationService.ajouterProfil, onSuccess: invalider });
+  const modifierProfilM = useMutation({
+    mutationFn: (v: { id: string; data: Partial<Omit<Profil, 'id'>> }) => habilitationService.modifierProfil(v.id, v.data),
+    onSuccess: invalider,
+  });
+  const supprimerProfilM = useMutation({ mutationFn: habilitationService.supprimerProfil, onSuccess: invalider });
+  const mettreAJourHabilitationsM = useMutation({
+    mutationFn: (v: { profilId: string; habilitations: HabilitationProfil[] }) =>
+      habilitationService.mettreAJourHabilitations(v.profilId, v.habilitations),
+    onSuccess: invalider,
+  });
 
   // États pour les loaders et la liste
   const [enChargement, setEnChargement] = useState(false);
@@ -69,33 +84,23 @@ export const Profils: React.FC = () => {
 
   const handleAjouterOuModifier = (e: React.FormEvent) => {
     e.preventDefault();
-    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
 
     if (profilEnModification) {
-      // Modification
-      const res = store.modifierProfil(profilEnModification.id, {
-        libelle: form.libelle,
-        description: form.description
-      }, userEmail);
-      if (res.success) {
-        flash(true, `Le profil "${form.libelle}" a été mis à jour.`);
-        reinitialiserFormulaire();
-      } else {
-        flash(false, res.error || 'Erreur lors de la modification.');
-      }
+      modifierProfilM.mutate(
+        { id: profilEnModification.id, data: { libelle: form.libelle, description: form.description } },
+        {
+          onSuccess: () => { flash(true, `Le profil "${form.libelle}" a été mis à jour.`); reinitialiserFormulaire(); },
+          onError: (err: any) => flash(false, err.message || 'Erreur lors de la modification.'),
+        }
+      );
     } else {
-      // Création
-      const res = store.ajouterProfil({
-        code: form.code,
-        libelle: form.libelle,
-        description: form.description
-      }, userEmail);
-      if (res.success) {
-        flash(true, `Le profil "${form.libelle}" a été créé.`);
-        reinitialiserFormulaire();
-      } else {
-        flash(false, res.error || 'Erreur lors de la création.');
-      }
+      ajouterProfilM.mutate(
+        { code: form.code, libelle: form.libelle, description: form.description },
+        {
+          onSuccess: () => { flash(true, `Le profil "${form.libelle}" a été créé.`); reinitialiserFormulaire(); },
+          onError: (err: any) => flash(false, err.message || 'Erreur lors de la création.'),
+        }
+      );
     }
   };
 
@@ -104,14 +109,11 @@ export const Profils: React.FC = () => {
       flash(false, 'Le profil administrateur complet ne peut pas être supprimé.');
       return;
     }
-    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
     if (window.confirm(`Voulez-vous vraiment supprimer le profil "${p.libelle}" ?`)) {
-      const res = store.supprimerProfil(p.id, userEmail);
-      if (res.success) {
-        flash(true, `Le profil "${p.libelle}" a été supprimé.`);
-      } else {
-        flash(false, res.error || 'Erreur lors de la suppression.');
-      }
+      supprimerProfilM.mutate(p.id, {
+        onSuccess: () => flash(true, `Le profil "${p.libelle}" a été supprimé.`),
+        onError: (err: any) => flash(false, err.message || 'Erreur lors de la suppression.'),
+      });
     }
   };
 
@@ -157,14 +159,13 @@ export const Profils: React.FC = () => {
 
   const sauvegarderHabilitations = () => {
     if (!profilHabilId) return;
-    const userEmail = utilisateur?.email || 'admin@medec-ci.org';
-    const res = store.mettreAJourHabilitations(profilHabilId, tempHabilitations, userEmail);
-    if (res.success) {
-      flash(true, 'Habilitations enregistrées avec succès.');
-      fermerHabilitations();
-    } else {
-      flash(false, res.error || 'Erreur lors de l\'enregistrement.');
-    }
+    mettreAJourHabilitationsM.mutate(
+      { profilId: profilHabilId, habilitations: tempHabilitations },
+      {
+        onSuccess: () => { flash(true, 'Habilitations enregistrées avec succès.'); fermerHabilitations(); },
+        onError: (err: any) => flash(false, err.message || 'Erreur lors de l\'enregistrement.'),
+      }
+    );
   };
 
   // Filtrage

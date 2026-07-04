@@ -1,18 +1,15 @@
-import client from '../api/client';
-import type { Suggestion } from '../stores/useDonneesStore';
+import { apiFetch } from '../lib/apiFetch';
+import type { Suggestion } from '../types/models';
 
 export const suggestionService = {
   recupererSuggestions: async (): Promise<Suggestion[]> => {
-    const response = await client.get('/suggestions');
-    return response.data;
+    return apiFetch<Suggestion[]>('/api/suggestions');
   },
   soumettreSuggestion: async (sug: Omit<Suggestion, 'id' | 'date'>): Promise<Suggestion> => {
-    const response = await client.post('/suggestions', sug);
-    return response.data;
+    return apiFetch<Suggestion>('/api/suggestions', { method: 'POST', body: JSON.stringify(sug) });
   },
   supprimerSuggestion: async (id: string): Promise<{ success: boolean }> => {
-    const response = await client.delete(`/suggestions/${id}`);
-    return response.data;
-  }
+    return apiFetch<{ success: boolean }>(`/api/suggestions/${id}`, { method: 'DELETE' });
+  },
 };
 export default suggestionService;

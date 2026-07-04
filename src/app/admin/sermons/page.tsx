@@ -5,7 +5,7 @@ import Sermons from '../../../views/admin/Sermons';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="SERMONS">
       <Sermons />
     </GardeRoute>
   );

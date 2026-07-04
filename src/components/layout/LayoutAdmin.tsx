@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Users,
@@ -22,50 +24,70 @@ import {
   BookOpen,
   Inbox,
   ShieldCheck,
-  UserCog
+  UserCog,
+  type LucideIcon,
 } from 'lucide-react';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { useDonneesStore } from '../../stores/useDonneesStore';
+import { usePermissions } from '../../hooks/usePermissions';
+import notificationService from '../../services/notificationService';
 
 const logo = '/logo.jpg';
+
+const ICONES: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  Users,
+  Newspaper,
+  Mic,
+  Calendar,
+  HeartHandshake,
+  Settings,
+  Folder,
+  Trash2,
+  History,
+  Sliders,
+  Heart,
+  BookOpen,
+  Inbox,
+  ShieldCheck,
+  UserCog,
+};
 
 export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarReplie, setSidebarReplie] = useState(false);
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const [notifsOuvertes, setNotifsOuvertes] = useState(false);
 
-  const { utilisateur, deconnexion } = useAuthStore();
-  const { notifications, marquerNotificationLue, effacerNotifications } = useDonneesStore();
+  const { data: session } = useSession();
+  const { menus, profilLibelle } = usePermissions();
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: notificationService.recupererNotifications,
+    refetchInterval: 30000,
+  });
+
+  const marquerLueMutation = useMutation({
+    mutationFn: notificationService.marquerNotificationLue,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const effacerMutation = useMutation({
+    mutationFn: notificationService.effacerNotifications,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
 
   const handleDeconnexion = () => {
-    deconnexion();
-    router.push('/');
+    signOut({ redirect: false }).then(() => router.push('/'));
   };
 
-  // Liste complète des liens (avec "Dons & Offrandes" retiré car il revient aux Caisses)
-  const tousLesLiens = [
-    { chemin: '/admin', libelle: 'Tableau de bord', icone: LayoutDashboard, exact: true, roles: ['ADMIN', 'PASTEUR', 'TRESORIER'] },
-    { chemin: '/admin/caisses', libelle: 'Caisses (Fonds)', icone: Folder, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/membres', libelle: 'Fidèles Cotisants', icone: Users, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/archives', libelle: 'Archives Caisses', icone: Trash2, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/historique', libelle: 'Historique Global', icone: History, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/parametrage', libelle: 'Paramétrages', icone: Sliders, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/dons', libelle: 'Dons en Ligne', icone: Heart, roles: ['ADMIN', 'TRESORIER'] },
-    { chemin: '/admin/meditations', libelle: 'Méditations', icone: BookOpen, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/suggestions', libelle: 'Suggestions', icone: Inbox, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/actualites', libelle: 'Actualités', icone: Newspaper, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/sermons', libelle: 'Sermons', icone: Mic, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/evenements', libelle: 'Événements', icone: Calendar, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/prieres', libelle: 'Demandes de Prière', icone: HeartHandshake, roles: ['ADMIN', 'PASTEUR'] },
-    { chemin: '/admin/profils', libelle: 'Profils & Habilitations', icone: ShieldCheck, roles: ['ADMIN'] },
-    { chemin: '/admin/utilisateurs-dashboard', libelle: 'Utilisateurs Dashboard', icone: UserCog, roles: ['ADMIN'] },
-    { chemin: '/admin/parametres', libelle: 'Mon Profil', icone: Settings, roles: ['ADMIN', 'PASTEUR', 'TRESORIER'] },
-  ];
-
-  const roleUtilisateur = utilisateur?.role || 'PASTEUR';
-  const liensNavigation = tousLesLiens.filter(lien => lien.roles.includes(roleUtilisateur));
+  const liensNavigation = menus.map((m) => ({
+    chemin: m.chemin,
+    libelle: m.libelle,
+    icone: ICONES[m.icone] || LayoutDashboard,
+    exact: m.code === 'TABLEAU_BORD',
+  }));
 
   const estActif = (chemin: string, exact = false) => {
     if (exact) {
@@ -74,14 +96,15 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
     return pathname.startsWith(chemin) && (chemin !== '/admin' || pathname === '/admin');
   };
 
-  const notifsNonLues = notifications.filter(n => !n.lu).length;
+  const notifsNonLues = notifications.filter((n) => !n.lu).length;
+  const initiales = `${session?.user?.prenom?.charAt(0) || ''}${session?.user?.nom?.charAt(0) || ''}`;
 
   return (
     <div className={`app-layout ${sidebarReplie ? 'sidebar-collapsed' : ''} ${menuMobileOuvert ? 'mobile-menu-open' : ''}`}>
-      
+
       {/* SIDEBAR DESKTOP - Conforme à l'ancien projet */}
       <aside className={`sidebar ${sidebarReplie ? 'sidebar-collapsed' : ''}`}>
-        
+
         {/* Brand */}
         <div className="brand">
           <div className="brand-left">
@@ -91,7 +114,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
             {!sidebarReplie && (
               <div className="brand-text">
                 <span className="brand-name">MEDEC-CI</span>
-                <span className="brand-sub">{roleUtilisateur === 'TRESORIER' ? 'Finances' : 'Administration'}</span>
+                <span className="brand-sub">{profilLibelle || 'Administration'}</span>
               </div>
             )}
           </div>
@@ -145,16 +168,16 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
             <div className="profile-card">
               <div className="avatar-wrap">
                 <div className="avatar" style={{ background: 'var(--color-primary-light)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 'bold' }}>
-                  {utilisateur?.prenom.charAt(0)}{utilisateur?.nom.charAt(0)}
+                  {initiales}
                 </div>
                 <span className="online-dot"></span>
               </div>
               <div className="profile-info">
                 <span className="profile-name">
-                  {utilisateur?.prenom} {utilisateur?.nom}
+                  {session?.user?.prenom} {session?.user?.nom}
                 </span>
                 <span className="profile-role">
-                  {roleUtilisateur === 'TRESORIER' ? 'Trésorier' : roleUtilisateur === 'PASTEUR' ? 'Pasteur' : 'Admin'}
+                  {profilLibelle}
                 </span>
               </div>
               <button
@@ -186,7 +209,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
             <div className="brand-text">
               <span className="brand-name">MEDEC-CI</span>
-              <span className="brand-sub">{roleUtilisateur === 'TRESORIER' ? 'Finances' : 'Administration'}</span>
+              <span className="brand-sub">{profilLibelle || 'Administration'}</span>
             </div>
           </div>
           <button
@@ -227,16 +250,16 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
           <div className="profile-card">
             <div className="avatar-wrap">
               <div className="avatar" style={{ background: 'var(--color-primary-light)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 'bold' }}>
-                {utilisateur?.prenom.charAt(0)}{utilisateur?.nom.charAt(0)}
+                {initiales}
               </div>
               <span className="online-dot"></span>
             </div>
             <div className="profile-info">
               <span className="profile-name">
-                {utilisateur?.prenom} {utilisateur?.nom}
+                {session?.user?.prenom} {session?.user?.nom}
               </span>
               <span className="profile-role">
-                {utilisateur?.role}
+                {profilLibelle}
               </span>
             </div>
             <button
@@ -252,7 +275,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
 
       {/* CONTAINER PRINCIPAL */}
       <div className="main-container">
-        
+
         {/* TOPBAR ADMIN */}
         <header className="topbar">
           {/* Mobile Topbar header content */}
@@ -263,7 +286,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
               </div>
               <div className="brand-text">
                 <span className="brand-name" style={{ fontSize: '14px', fontWeight: 800, color: 'white' }}>MEDEC-CI</span>
-                <span className="brand-sub" style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{roleUtilisateur === 'TRESORIER' ? 'Finances' : 'Admin'}</span>
+                <span className="brand-sub" style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{profilLibelle || 'Admin'}</span>
               </div>
             </div>
             <button
@@ -311,7 +334,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
                         <span className="font-semibold text-slate-800 text-sm font-inter">Notifications ({notifications.length})</span>
                         {notifications.length > 0 && (
                           <button
-                            onClick={effacerNotifications}
+                            onClick={() => effacerMutation.mutate()}
                             className="text-[11px] text-red-500 hover:text-red-600 font-semibold font-inter"
                           >
                             Tout effacer
@@ -328,7 +351,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
                             <div
                               key={notif.id}
                               onClick={() => {
-                                marquerNotificationLue(notif.id);
+                                marquerLueMutation.mutate(notif.id);
                                 setNotifsOuvertes(false);
                               }}
                               className={`px-4 py-3 border-b border-slate-50 text-xs hover:bg-slate-50 cursor-pointer transition-colors flex flex-col space-y-1 ${
@@ -349,7 +372,7 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
               </div>
 
               <div className="h-8 w-8 rounded-full bg-[#1B4F8A] text-white flex items-center justify-center font-bold text-xs uppercase font-poppins shadow-sm">
-                {utilisateur?.prenom.charAt(0)}{utilisateur?.nom.charAt(0)}
+                {initiales}
               </div>
             </div>
           </div>

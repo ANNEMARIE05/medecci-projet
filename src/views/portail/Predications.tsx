@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Play, Volume2, User, Calendar, BookOpen, ExternalLink } from 'lucide-react';
-import { useDonneesStore } from '../../stores/useDonneesStore';
+import sermonService from '../../services/sermonService';
+import type { Sermon } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 
 export const Predications: React.FC = () => {
   const [recherche, setRecherche] = useState('');
   const [predicateurFiltre, setPredicateurFiltre] = useState('tous');
-  const sermons = useDonneesStore((state) => state.sermons);
+  const [sermons, setSermons] = useState<Sermon[]>([]);
+
+  useEffect(() => {
+    sermonService.recupererSermons().then(setSermons).catch(console.error);
+  }, []);
 
   // Extraire les prédicateurs uniques pour le filtre
   const predicateurs = ['tous', ...Array.from(new Set(sermons.map((s) => s.predicateur)))];

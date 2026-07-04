@@ -1,22 +1,18 @@
-import client from '../api/client';
-import type { Sermon } from '../stores/useDonneesStore';
+import { apiFetch } from '../lib/apiFetch';
+import type { Sermon } from '../types/models';
 
 export const sermonService = {
   recupererSermons: async (): Promise<Sermon[]> => {
-    const response = await client.get('/sermons');
-    return response.data;
+    return apiFetch<Sermon[]>('/api/sermons');
   },
   creerSermon: async (sermon: Omit<Sermon, 'id'>): Promise<Sermon> => {
-    const response = await client.post('/sermons', sermon);
-    return response.data;
+    return apiFetch<Sermon>('/api/sermons', { method: 'POST', body: JSON.stringify(sermon) });
   },
   modifierSermon: async (id: string, sermon: Partial<Sermon>): Promise<Sermon> => {
-    const response = await client.put(`/sermons/${id}`, sermon);
-    return response.data;
+    return apiFetch<Sermon>(`/api/sermons/${id}`, { method: 'PUT', body: JSON.stringify(sermon) });
   },
   supprimerSermon: async (id: string): Promise<{ success: boolean }> => {
-    const response = await client.delete(`/sermons/${id}`);
-    return response.data;
-  }
+    return apiFetch<{ success: boolean }>(`/api/sermons/${id}`, { method: 'DELETE' });
+  },
 };
 export default sermonService;

@@ -5,7 +5,7 @@ import Actualites from '../../../views/admin/Actualites';
 
 export default function Page() {
   return (
-    <GardeRoute rolesAutorises={['ADMIN', 'PASTEUR']}>
+    <GardeRoute menuCode="ACTUALITES">
       <Actualites />
     </GardeRoute>
   );
