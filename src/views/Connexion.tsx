@@ -33,8 +33,8 @@ export const Connexion: React.FC = () => {
   } = useForm<FormConnexionInput>({
     resolver: zodResolver(schemaConnexion),
     defaultValues: {
-      email: 'admin@medec-ci.org', // Remplissage par défaut
-      motDePasse: 'admin123',
+      email: '',
+      motDePasse: '',
     }
   });
 

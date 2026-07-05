@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'MEDECCI - Mission Évangélique',
   description: 'Portail de la Mission Évangélique de Dieu En Christ de Côte d\'Ivoire (MEDEC-CI)',
   icons: {
-    icon: '/favicon.svg',
+    icon: '/logo.jpg',
   },
 };
 
@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.svg" />
+        <link rel="icon" href="/logo.jpg" />
       </head>
       <body suppressHydrationWarning>
         <Providers>{children}</Providers>

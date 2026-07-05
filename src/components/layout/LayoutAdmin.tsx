@@ -81,13 +81,27 @@ export const LayoutAdmin: React.FC<{ children: React.ReactNode }> = ({ children 
   const handleDeconnexion = () => {
     signOut({ redirect: false }).then(() => router.push('/'));
   };
-
-  const liensNavigation = menus.map((m) => ({
+  const rawLiens = menus.map((m) => ({
     chemin: m.chemin,
     libelle: m.libelle,
     icone: ICONES[m.icone] || LayoutDashboard,
     exact: m.code === 'TABLEAU_BORD',
   }));
+
+  const indexTableauBord = rawLiens.findIndex(
+    (lien) => lien.exact || lien.libelle.toLowerCase() === 'tableau de bord'
+  );
+
+  let liensNavigation = [...rawLiens];
+  if (indexTableauBord !== -1) {
+    const itemTableauBord = rawLiens[indexTableauBord];
+    const autresLiens = rawLiens.filter((_, idx) => idx !== indexTableauBord);
+    autresLiens.sort((a, b) => (a.libelle || '').localeCompare(b.libelle || '', 'fr'));
+    autresLiens.splice(indexTableauBord, 0, itemTableauBord);
+    liensNavigation = autresLiens;
+  } else {
+    liensNavigation.sort((a, b) => (a.libelle || '').localeCompare(b.libelle || '', 'fr'));
+  }
 
   const estActif = (chemin: string, exact = false) => {
     if (exact) {

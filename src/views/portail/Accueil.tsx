@@ -21,17 +21,26 @@ import { VERSETS_BIBLIQUES, PROGRAMMES_CULTES } from '../../constants';
 import { PHOTOS } from '../../constants/photos';
 import evenementService from '../../services/evenementService';
 import actualiteService from '../../services/actualiteService';
-import type { Evenement, Actualite } from '../../types/models';
+import sermonService from '../../services/sermonService';
+import type { Evenement, Actualite, Sermon } from '../../types/models';
 import { formaterDate } from '../../utils/formateur';
 
 export const Accueil: React.FC = () => {
   const [verset, setVerset] = useState(VERSETS_BIBLIQUES[0]);
   const [evenements, setEvenements] = useState<Evenement[]>([]);
   const [actualites, setActualites] = useState<Actualite[]>([]);
+  const [sermonsDuJour, setSermonsDuJour] = useState<Sermon[]>([]);
 
   useEffect(() => {
     evenementService.recupererEvenements().then(setEvenements).catch(console.error);
     actualiteService.recupererActualites().then(setActualites).catch(console.error);
+    sermonService.recupererSermons()
+      .then((data) => {
+        // Prendre les 3 plus récents
+        const trie = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setSermonsDuJour(trie.slice(0, 3));
+      })
+      .catch(console.error);
   }, []);
 
   // Utiliser les vraies photos pour le slider
@@ -187,30 +196,6 @@ export const Accueil: React.FC = () => {
   const prochainsEvs = evenements.slice(0, 2);
   const dernieresActus = actualites.slice(0, 3);
 
-  // Liste des sermons du jour
-  const sermonsDuJour = [
-    {
-      titre: "Marcher dans la fidélité en temps de crise",
-      pasteur: "Prophète ASSANDE Jacques",
-      date: "28 Juin 2026",
-      image: getPhoto(4, 'https://images.unsplash.com/photo-1544717277-994b96273b24?auto=format&fit=crop&q=80&w=600'),
-      duree: "45:12"
-    },
-    {
-      titre: "La puissance d'une prière fervente et persévérante",
-      pasteur: "Apôtre Christine ASSANDE",
-      date: "21 Juin 2026",
-      image: getPhoto(7, 'https://images.unsplash.com/photo-1507692049790-de58290a4334?auto=format&fit=crop&q=80&w=600'),
-      duree: "38:50"
-    },
-    {
-      titre: "Bâtir des fondations spirituelles inébranlables",
-      pasteur: "Pasteur MORIBA Komon Joseph",
-      date: "14 Juin 2026",
-      image: getPhoto(25, 'https://images.unsplash.com/photo-1478147427282-58a87a120781?auto=format&fit=crop&q=80&w=600'),
-      duree: "52:10"
-    }
-  ];
 
   return (
     <div className="bg-[#F8FAFC] space-y-12 sm:space-y-20 pb-12 sm:pb-20 overflow-x-hidden font-outfit">
@@ -613,49 +598,61 @@ export const Accueil: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {sermonsDuJour.map((sermon, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="bg-white border border-[#E2E8F0] rounded-3xl p-5 space-y-4 hover:border-medecci-or/40 transition-colors shadow-sm flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="relative h-44 rounded-2xl overflow-hidden group">
-                  <img src={sermon.image} alt={sermon.titre} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button
-                      onClick={() => jouerSermon(sermon.titre, sermon.pasteur)}
-                      className="p-4 bg-white text-[#0B3C91] rounded-full shadow-lg hover:scale-105 transition-transform"
-                    >
-                      <Play className="h-5 w-5 fill-current" />
-                    </button>
+        {sermonsDuJour.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-3xl border border-[#E2E8F0] p-6 max-w-md mx-auto">
+            <BookOpen className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm font-light">Aucune prédication récente disponible pour le moment.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {sermonsDuJour.map((sermon, i) => {
+              const imageSermon = getPhoto(4 + i, 'https://images.unsplash.com/photo-1544717277-994b96273b24?auto=format&fit=crop&q=80&w=600');
+              const dateSermon = formaterDate(sermon.date);
+              const predicateur = sermon.predicateur || 'Prédicateur';
+              return (
+                <motion.div
+                  key={sermon.id || i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.15 }}
+                  className="bg-white border border-[#E2E8F0] rounded-3xl p-5 space-y-4 hover:border-medecci-or/40 transition-colors shadow-sm flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <div className="relative h-44 rounded-2xl overflow-hidden group">
+                      <img src={imageSermon} alt={sermon.titre} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-slate-950/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <button
+                          onClick={() => jouerSermon(sermon.titre, predicateur)}
+                          className="p-4 bg-white text-[#0B3C91] rounded-full shadow-lg hover:scale-105 transition-transform"
+                        >
+                          <Play className="h-5 w-5 fill-current" />
+                        </button>
+                      </div>
+                      <span className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        Message
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{dateSermon}</span>
+                      <h4 className="font-poppins font-bold text-slate-800 text-sm sm:text-base leading-snug line-clamp-2">
+                        {sermon.titre}
+                      </h4>
+                      <p className="text-xs text-medecci-or font-bold uppercase tracking-wider">{predicateur}</p>
+                    </div>
                   </div>
-                  <span className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                    {sermon.duree}
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sermon.date}</span>
-                  <h4 className="font-poppins font-bold text-slate-800 text-sm sm:text-base leading-snug line-clamp-2">
-                    {sermon.titre}
-                  </h4>
-                  <p className="text-xs text-medecci-or font-bold uppercase tracking-wider">{sermon.pasteur}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => jouerSermon(sermon.titre, sermon.pasteur)}
-                className="w-full py-3 border border-[#E2E8F0] hover:border-medecci-or hover:bg-medecci-or/5 text-slate-700 hover:text-medecci-or rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2"
-              >
-                <Play className="h-3.5 w-3.5 fill-current" />
-                <span>Écouter le message</span>
-              </button>
-            </motion.div>
-          ))}
-        </div>
+                  <button
+                    onClick={() => jouerSermon(sermon.titre, predicateur)}
+                    className="w-full py-3 border border-[#E2E8F0] hover:border-medecci-or hover:bg-medecci-or/5 text-slate-700 hover:text-medecci-or rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2"
+                  >
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <span>Écouter le message</span>
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* 7. TRACKER DE DONS - CONSTRUCTION DU TEMPLE */}
