@@ -736,48 +736,71 @@ export const Accueil: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {dernieresActus.map((actu, index) => (
-            <motion.article
-              key={actu.id}
-              initial={{ opacity: 0, y: 25 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.15 }}
-              className="group bg-white rounded-3xl overflow-hidden border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-            >
-              <div>
-                <div className="h-52 overflow-hidden relative">
-                  <img
-                    src={actu.image || getPhoto(30 + index * 6, '')}
-                    alt={actu.titre}
-                    className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-750"
-                  />
-                </div>
-                <div className="p-6 space-y-3">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    Publié le {formaterDate(actu.datePublication)}
-                  </span>
-                  <h3 className="font-poppins text-base font-bold text-slate-800 group-hover:text-[#1E88E5] transition-colors line-clamp-2 leading-snug">
-                    {actu.titre}
-                  </h3>
-                  <p className="text-slate-555 text-xs leading-relaxed line-clamp-3 font-light">
-                    {actu.description}
-                  </p>
-                </div>
+        {dernieresActus.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm">
+            <div className="max-w-sm mx-auto space-y-4 px-6">
+              <div className="w-16 h-16 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl flex items-center justify-center mx-auto">
+                <BookOpen className="h-7 w-7 text-slate-300" />
               </div>
-              <div className="p-6 pt-0">
-                <Link
-                  href="/blog"
-                  className="inline-flex items-center space-x-1 text-xs font-bold text-[#0B3C91] hover:text-[#1E88E5]"
-                >
-                  <span>Lire l'article</span>
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-            </motion.article>
-          ))}
-        </div>
+              <h3 className="font-poppins font-bold text-slate-700 text-base">
+                Aucune actualité pour le moment
+              </h3>
+              <p className="text-slate-400 text-sm font-light leading-relaxed">
+                Nous n'avons pas encore publié d'actualités. Revenez bientôt pour suivre les nouvelles de notre communauté.
+              </p>
+              <Link
+                href="/blog"
+                className="inline-flex items-center space-x-2 bg-[#0B3C91] hover:bg-[#1E88E5] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-colors mt-2"
+              >
+                <span>Consulter le blog</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {dernieresActus.map((actu, index) => (
+              <motion.article
+                key={actu.id}
+                initial={{ opacity: 0, y: 25 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.15 }}
+                className="group bg-white rounded-3xl overflow-hidden border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="h-52 overflow-hidden relative">
+                    <img
+                      src={actu.image || getPhoto(30 + index * 6, '')}
+                      alt={actu.titre}
+                      className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-750"
+                    />
+                  </div>
+                  <div className="p-6 space-y-3">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                      Publié le {formaterDate(actu.datePublication)}
+                    </span>
+                    <h3 className="font-poppins text-base font-bold text-slate-800 group-hover:text-[#1E88E5] transition-colors line-clamp-2 leading-snug">
+                      {actu.titre}
+                    </h3>
+                    <p className="text-slate-555 text-xs leading-relaxed line-clamp-3 font-light">
+                      {actu.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="p-6 pt-0">
+                  <Link
+                    href="/blog"
+                    className="inline-flex items-center space-x-1 text-xs font-bold text-[#0B3C91] hover:text-[#1E88E5]"
+                  >
+                    <span>Lire l'article</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              </motion.article>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* 9. APPEL A L'ACTION - REJOINDRE L'EGLISE */}
