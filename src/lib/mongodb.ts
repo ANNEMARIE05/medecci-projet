@@ -8,12 +8,6 @@ try {
   console.warn('Failed to set custom DNS servers for MongoDB resolution:', error);
 }
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error('La variable d\'environnement MONGODB_URI est manquante.');
-}
-
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -28,12 +22,18 @@ const cache: MongooseCache = global._mongooseCache ?? { conn: null, promise: nul
 global._mongooseCache = cache;
 
 export async function connectDB(): Promise<typeof mongoose> {
+  const MONGODB_URI = process.env.MONGODB_URI;
+
+  if (!MONGODB_URI) {
+    throw new Error('La variable d\'environnement MONGODB_URI est manquante.');
+  }
+
   if (cache.conn) {
     return cache.conn;
   }
 
   if (!cache.promise) {
-    cache.promise = mongoose.connect(MONGODB_URI as string, {
+    cache.promise = mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
     });
   }
