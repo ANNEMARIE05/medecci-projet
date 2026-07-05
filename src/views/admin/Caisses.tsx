@@ -391,40 +391,26 @@ export const Caisses: React.FC = () => {
                     <div>
                       <span className="caisse-name">{c.nom}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        className="btn-edit"
-                        title="Modifier"
-                        style={{ padding: '4px 6px' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCaisseDetailId(c.id);
-                          setModifNom(c.nom);
-                          setModifCode(c.code || '');
-                          setModifResponsable(c.responsable || '');
-                          setModifObjectif(c.objectif ? c.objectif.toString() : '');
-                          setModifCategorie(c.categorie || 'Général');
-                          setModifDesc(c.description || '');
-                          setModifError('');
-                          setModifSuccess('');
-                          setShowModifierModal(true);
-                        }}
-                      >
-                        <Edit2 className="h-3 w-3" />
-                      </button>
-
-                      <button
-                        className="btn-edit"
-                        title="Archiver"
-                        style={{ padding: '4px 6px', borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCaisseAArchiver(c);
-                        }}
-                      >
-                        <Archive className="h-3 w-3" />
-                      </button>
-                    </div>
+                    <button
+                      className="btn-edit"
+                      title="Modifier la caisse"
+                      style={{ padding: '4px 6px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCaisseDetailId(c.id);
+                        setModifNom(c.nom);
+                        setModifCode(c.code || '');
+                        setModifResponsable(c.responsable || '');
+                        setModifObjectif(c.objectif ? c.objectif.toString() : '');
+                        setModifCategorie(c.categorie || 'Général');
+                        setModifDesc(c.description || '');
+                        setModifError('');
+                        setModifSuccess('');
+                        setShowModifierModal(true);
+                      }}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </button>
                   </div>
                   <p className="caisse-desc">{c.description || 'Aucune description disponible.'}</p>
 

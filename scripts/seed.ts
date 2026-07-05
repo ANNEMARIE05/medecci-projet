@@ -48,6 +48,7 @@ const menusInitiaux = [
   { mockId: 'mnu-14', code: 'PARAMETRES', libelle: 'Mon Profil', chemin: '/admin/parametres', icone: 'Settings', actionsDisponibles: ['act-1', 'act-3'] },
   { mockId: 'mnu-15', code: 'PROFILS', libelle: 'Profils & Habilitations', chemin: '/admin/profils', icone: 'ShieldCheck', actionsDisponibles: ['act-1', 'act-2', 'act-3', 'act-4'] },
   { mockId: 'mnu-16', code: 'UTILISATEURS', libelle: 'Utilisateurs Dashboard', chemin: '/admin/utilisateurs-dashboard', icone: 'UserCog', actionsDisponibles: ['act-1', 'act-2', 'act-3', 'act-4'] },
+  { mockId: 'mnu-17', code: 'ANNONCES_FINANCES', libelle: 'Annonces Dimanche', chemin: '/admin/annonces-finances', icone: 'Mic2', actionsDisponibles: ['act-1', 'act-2', 'act-3', 'act-4'] },
 ];
 
 const profilsInitiaux = [

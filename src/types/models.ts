@@ -165,3 +165,38 @@ export interface AuditTrace {
   entite: string;
   details: string;
 }
+
+export interface PaiementAnnonce {
+  libelle: string;
+  montant: number;
+  caisse?: string;
+  details?: string;
+}
+
+export interface EvenementAnnonce {
+  titre: string;
+  date: string;
+  lieu?: string;
+  details?: string;
+}
+
+export interface AutrePoint {
+  sujet: string;
+  details?: string;
+}
+
+export type StatutAnnonce = 'BROUILLON' | 'PRESENTEE' | 'ARCHIVEE';
+
+export interface AnnonceFinance {
+  id: string;
+  dateDimanche: string;
+  statut: StatutAnnonce;
+  titreSession: string;
+  paiementsAnnonces: PaiementAnnonce[];
+  evenementsAVenir: EvenementAnnonce[];
+  notesLibres: string;
+  autresPoints: AutrePoint[];
+  creePar: string;
+  dateCreation: string;
+  dateModification: string;
+}

@@ -1,31 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import caisseService from '../../services/caisseService';
 import membreService from '../../services/membreService';
 import cotisationService from '../../services/cotisationService';
 import habilitationService from '../../services/habilitationService';
 import type { AuditTrace } from '../../types/models';
-import { calculerTotalCaisse } from '../../lib/caisseUtils';
 import { formaterDevise, formaterDate } from '../../utils/formateur';
 import PaginationFooter from '../../components/UI/PaginationFooter';
-import { Search, User, Edit2, History, ShieldAlert, FileText, Check, X } from 'lucide-react';
+import { Search, User, History, ShieldAlert, Eye, X, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Historique: React.FC = () => {
-  const queryClient = useQueryClient();
   const { data: caisses = [] } = useQuery({ queryKey: ['caisses'], queryFn: caisseService.recupererCaisses });
   const { data: membres = [] } = useQuery({ queryKey: ['membres'], queryFn: membreService.recupererMembres });
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: cotisationService.recupererTransactions });
   const { data: tracesAudit = [] } = useQuery({ queryKey: ['audit'], queryFn: habilitationService.recupererAudit });
-
-  const modifierCotisationMutation = useMutation({
-    mutationFn: (vars: { idTx: string; montant: number }) => cotisationService.modifierCotisation(vars.idTx, vars.montant),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['caisses'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['audit'] });
-    },
-  });
 
   // Gestion des onglets
   const [ongletActif, setOngletActif] = useState<'versements' | 'audit'>('versements');
@@ -37,11 +26,8 @@ export const Historique: React.FC = () => {
   const [taillePage, setTaillePage] = useState(10);
   const [enChargement, setEnChargement] = useState(false);
 
-  // Correction versement (traçabilité)
-  const [txAModifier, setTxAModifier] = useState<any>(null);
-  const [nouveauMontantModif, setNouveauMontantModif] = useState('');
-  const [editError, setEditError] = useState('');
-  const [editSuccess, setEditSuccess] = useState('');
+  // Modal lecture seule pour voir les détails d'une transaction
+  const [txDetail, setTxDetail] = useState<any>(null);
 
   // Reset pagination et simulation loader
   useEffect(() => {
@@ -91,7 +77,7 @@ export const Historique: React.FC = () => {
     const act = action.toUpperCase();
     if (act.includes('CRÉATION') || act.includes('CREATION') || act.includes('AUTORISATION')) return 'badge-success';
     if (act.includes('SUPPRESSION') || act.includes('INACTIF')) return 'badge-danger';
-    return 'badge-partial'; // modification, etc
+    return 'badge-partial';
   };
 
   // Pagination calculs
@@ -103,38 +89,6 @@ export const Historique: React.FC = () => {
 
   const transactionsPaginees = transactionsFiltrees.slice(indexPremier, indexDernier);
   const tracesPaginees = tracesFiltrees.slice(indexPremier, indexDernier);
-
-  const gererSoumissionModifTx = (e: React.FormEvent) => {
-    e.preventDefault();
-    setEditError('');
-    setEditSuccess('');
-
-    const valMontant = Number(nouveauMontantModif);
-    if (isNaN(valMontant) || valMontant <= 0) {
-      setEditError('Veuillez saisir un montant valide.');
-      return;
-    }
-
-    const caisse = caisses.find(c => c.id === txAModifier.idCaisse);
-    if (caisse && caisse.objectif > 0) {
-      const soldeActuel = calculerTotalCaisse(caisse);
-      const resteAutorise = caisse.objectif - (soldeActuel - txAModifier.montant);
-      if (valMontant > resteAutorise) {
-        setEditError(`Ce montant dépasse l'objectif de la caisse. Le montant maximum autorisé est de ${formaterDevise(resteAutorise)}.`);
-        return;
-      }
-    }
-
-    modifierCotisationMutation.mutate({ idTx: txAModifier.id, montant: valMontant }, {
-      onSuccess: () => {
-        setEditSuccess('Le versement a été modifié avec succès.');
-        setTimeout(() => {
-          setTxAModifier(null);
-        }, 1000);
-      },
-      onError: (err: any) => setEditError(err.message || 'Erreur de modification'),
-    });
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -155,7 +109,7 @@ export const Historique: React.FC = () => {
           style={{ padding: '8px 18px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s ease', fontWeight: 600 }}
         >
           <ShieldAlert className="h-4 w-4" />
-          <span>Audit & Traçabilité Générale</span>
+          <span>Audit &amp; Traçabilité Générale</span>
         </button>
       </div>
 
@@ -210,7 +164,7 @@ export const Historique: React.FC = () => {
                         <th>Caisse d'affectation</th>
                         <th>Montant Versé</th>
                         <th>Date / Heure</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
+                        <th style={{ textAlign: 'right' }}>Détails</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -255,17 +209,13 @@ export const Historique: React.FC = () => {
                             </td>
                             <td style={{ textAlign: 'right' }}>
                               <button
-                                onClick={() => {
-                                  setTxAModifier(tx);
-                                  setNouveauMontantModif(String(tx.montant));
-                                  setEditError('');
-                                  setEditSuccess('');
-                                }}
+                                onClick={() => setTxDetail(tx)}
                                 className="btn-edit"
-                                title="Corriger le montant"
-                                style={{ padding: '6px' }}
+                                title="Voir les détails"
+                                style={{ padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                               >
-                                <Edit2 className="h-3.5 w-3.5" />
+                                <Eye className="h-3.5 w-3.5" />
+                                <span style={{ fontSize: '11px' }}>Détails</span>
                               </button>
                             </td>
                           </tr>
@@ -279,7 +229,7 @@ export const Historique: React.FC = () => {
                     <thead>
                       <tr>
                         <th style={{ width: '44px' }}>#</th>
-                        <th>Date & Heure</th>
+                        <th>Date &amp; Heure</th>
                         <th>Utilisateur</th>
                         <th>Action</th>
                         <th>Entité</th>
@@ -345,9 +295,9 @@ export const Historique: React.FC = () => {
         )}
       </div>
 
-      {/* MODAL CORRECTION VERSEMENT (onglet versements) */}
+      {/* MODAL LECTURE SEULE — DÉTAILS DU VERSEMENT */}
       <AnimatePresence>
-        {txAModifier && (
+        {txDetail && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -355,53 +305,85 @@ export const Historique: React.FC = () => {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
             >
+              {/* En-tête */}
               <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FileText className="h-5 w-5 text-white" />
                   <h3 style={{ fontSize: '15px', fontWeight: '850', color: 'white', margin: 0 }}>
-                    Corriger le Versement
+                    Détails du Versement
                   </h3>
                 </div>
                 <button
-                  onClick={() => setTxAModifier(null)}
+                  onClick={() => setTxDetail(null)}
                   style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', cursor: 'pointer' }}
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <form onSubmit={gererSoumissionModifTx} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {editError && <div className="frm-alert err">{editError}</div>}
-                {editSuccess && <div className="frm-alert ok">{editSuccess}</div>}
+              {/* Corps — Lecture seule */}
+              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12.5px', background: 'var(--color-primary-soft)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                  <div><span style={{ color: 'var(--color-dark-muted)' }}>Fidèle :</span> <strong style={{ color: 'var(--color-dark)' }}>{obtenirNomMembre(txAModifier.idMembre)}</strong></div>
-                  <div><span style={{ color: 'var(--color-dark-muted)' }}>Caisse :</span> <strong style={{ color: 'var(--color-dark)' }}>{obtenirNomCaisse(txAModifier.idCaisse)}</strong></div>
-                  <div><span style={{ color: 'var(--color-dark-muted)' }}>Date originale :</span> <strong style={{ color: 'var(--color-dark)' }}>{formaterDate(txAModifier.date, true)}</strong></div>
+                {/* Infos principales */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--color-primary-soft)', padding: '16px', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', fontWeight: 600 }}>Fidèle</span>
+                    <strong style={{ fontSize: '13px', color: 'var(--color-dark)' }}>{obtenirNomMembre(txDetail.idMembre)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', fontWeight: 600 }}>Caisse</span>
+                    <strong style={{ fontSize: '13px', color: 'var(--color-dark)' }}>{obtenirNomCaisse(txDetail.idCaisse)}</strong>
+                  </div>
+                  {txDetail.typeDon && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', fontWeight: 600 }}>Type</span>
+                      <span style={{ fontSize: '13px', color: 'var(--color-dark)' }}>{txDetail.typeDon}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', fontWeight: 600 }}>Montant Versé</span>
+                    <strong style={{ fontSize: '18px', color: 'var(--color-primary)', fontWeight: 800 }}>{formaterDevise(txDetail.montant)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', fontWeight: 600 }}>Date originale</span>
+                    <span style={{ fontSize: '13px', color: 'var(--color-dark)' }}>{formaterDate(txDetail.date, true)}</span>
+                  </div>
+                  {txDetail.commentaire && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '8px', borderTop: '1px solid var(--color-border)' }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', fontWeight: 600 }}>Commentaire</span>
+                      <span style={{ fontSize: '12.5px', color: 'var(--color-dark)', fontStyle: 'italic' }}>{txDetail.commentaire}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="frm-grp">
-                  <label className="frm-lbl">Montant du versement (FCFA) *</label>
-                  <input
-                    type="number"
-                    value={nouveauMontantModif}
-                    onChange={(e) => setNouveauMontantModif(e.target.value)}
-                    className="frm-inp"
-                    required
-                    autoFocus
-                  />
+                {/* Historique des corrections (lecture seule) */}
+                <div>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-dark-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '8px' }}>
+                    Historique des corrections
+                  </span>
+                  {txDetail.modifications && txDetail.modifications.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }} className="no-scrollbar">
+                      {txDetail.modifications.map((m: any, index: number) => (
+                        <div key={index} style={{ fontSize: '11.5px', color: 'var(--color-dark-muted)', background: 'var(--color-bg-main)', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid var(--color-warning)', lineHeight: 1.5 }}>
+                          <strong style={{ display: 'block', marginBottom: '2px' }}>Correction du {new Date(m.date).toLocaleString('fr-FR')}</strong>
+                          {formaterDevise(m.ancienMontant)} &rarr; {formaterDevise(m.nouveauMontant)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '12px', color: 'var(--color-dark-muted)', fontStyle: 'italic', margin: 0 }}>
+                      Aucune correction enregistrée sur ce versement.
+                    </p>
+                  )}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '10px' }}>
-                  <button type="button" className="btn-sec" onClick={() => setTxAModifier(null)}>
-                    Annuler
+                {/* Actions */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--color-border)', paddingTop: '14px', marginTop: '4px' }}>
+                  <button className="btn-prim" onClick={() => setTxDetail(null)}>
+                    Fermer
                   </button>
-                  <button type="submit" className="btn-prim">
-                    <Check className="h-4 w-4" />
-                    <span>Valider la correction</span>
-                  </button>
                 </div>
-              </form>
+              </div>
             </motion.div>
           </div>
         )}
