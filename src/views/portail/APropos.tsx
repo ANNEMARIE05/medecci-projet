@@ -40,7 +40,7 @@ export const APropos: React.FC = () => {
       nom: "Prophète ASSANDE Jacques",
       role: "Président Fondateur de la MEDEC-CI",
       details: "Fondateur et visionnaire principal de la mission. Il assure la direction spirituelle nationale et internationale de la MEDEC-CI.",
-      image: "/prophete_assande.png",
+      image: "/photos/557639439_122134580888950124_3761980451903721161_n.jpg",
       categorie: "Bureau National"
     },
     {
@@ -54,50 +54,71 @@ export const APropos: React.FC = () => {
       nom: "Pasteur MORIBA Komon Joseph",
       role: "Vice-Président & 1er Responsable du Siège",
       details: "Il co-dirige la mission nationale et gère directement les activités pastorales du siège national de Koumassi.",
-      image: getPhoto(8, "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/557679094_122134579754950124_4895520235826560680_n.jpg",
+      categorie: "Bureau National"
+    },
+    {
+      nom: "Maman MORIBA",
+      role: "Épouse du Vice-Président",
+      details: "Elle accompagne et soutient activement le Vice-Président dans la direction spirituelle et l'encadrement des familles chrétiennes de la mission.",
+      image: "/photos/536277490_122121478562950124_5281009579675872034_n.jpg",
       categorie: "Bureau National"
     },
     {
       nom: "Apôtre FALLE Zébo Ambroise",
       role: "Directeur des Églises Locales (DEL)",
       details: "Responsable de la coordination, de l'implantation et de la supervision des temples locaux en Côte d'Ivoire. Pasteur principal de MEDEC-CI Adjouffou.",
-      image: getPhoto(12, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/537566531_122121478604950124_1418051648142844329_n.jpg",
       categorie: "Bureau National"
     },
     {
       nom: "Rév. Pasteur NOUDE Hubert Tia",
       role: "Responsable de la Zone de Lakota",
       details: "Superviseur spirituel de la zone de Lakota (5 églises) et pasteur principal de l'église locale de Lakota Ville.",
-      image: getPhoto(24, "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/537382681_122121478292950124_3607699274590152335_n.jpg",
       categorie: "Zone Lakota"
     },
     {
       nom: "Pasteur NAHOUNOU Éric",
       role: "Responsable de la Zone d'Abidjan",
       details: "Coordonnateur de la zone d'Abidjan (8 églises locales) et pasteur adjoint au siège national de Koumassi.",
-      image: getPhoto(32, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/557659375_122134579742950124_779434849662878515_n.jpg",
       categorie: "Zone Abidjan"
     },
     {
       nom: "Pasteur AKE Brigitte (épouse AYE)",
       role: "Responsable MEDEC-CI Gens Bénis (Jean Folly)",
       details: "Elle dirige l'église locale de Jean Folly (Gens bénis) avec un zèle remarquable pour l'avancement du Royaume.",
-      image: getPhoto(40, "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/537933211_122121478376950124_7349738537995093495_n.jpg",
       categorie: "Zone Abidjan"
     },
     {
       nom: "Pasteur MAHI Chantal (épouse BIEDRO)",
       role: "Responsable MEDEC-CI Yopougon",
       details: "Responsable de l'extension de Yopougon Gesco, qu'elle conduit avec ferveur depuis plus de 12 ans.",
-      image: getPhoto(48, "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/536275998_122121478790950124_4624889491702121117_n.jpg",
       categorie: "Zone Abidjan"
     },
     {
       nom: "Pasteur DABONE Pascal",
       role: "Directeur National de la Jeunesse (DJ)",
       details: "Il conduit la direction de la jeunesse (JMEDECCI) pour préparer les leaders de demain à travers des activités spirituelles et éducatives.",
-      image: getPhoto(56, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400"),
+      image: "/photos/557665460_122134579760950124_6344517629055022443_n.jpg",
       categorie: "Bureau National"
+    },
+    {
+      nom: "Pasteur DOSSOUGA Polain",
+      role: "Ancien & Pasteur",
+      details: "Ancien de la mission, il est particulièrement consacré et dévoué au suivi spirituel, à l'orientation et à l'encadrement de la jeunesse chrétienne.",
+      image: "/photos/558140296_122134579460950124_7852019663633442564_n.jpg",
+      categorie: "Zone Abidjan"
+    },
+    {
+      nom: "Pasteur BAZIE Richard",
+      role: "Pasteur",
+      details: "Engagé dans la formation des disciples, l'évangélisation et l'accompagnement pastoral des fidèles.",
+      image: "/photos/557659378_122134579622950124_7260038837114972288_n.jpg",
+      categorie: "Zone Abidjan"
     }
   ];
 
@@ -183,6 +204,7 @@ export const APropos: React.FC = () => {
                 src={getPhoto(29, "https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&q=80&w=800")}
                 alt="Assemblée générale MEDECCI"
                 className="w-full h-[400px] object-cover rounded-2xl"
+                style={{ objectPosition: 'center 15%' }}
               />
             </div>
           </motion.div>
@@ -241,7 +263,7 @@ export const APropos: React.FC = () => {
             <div className="flex flex-col items-center text-center space-y-4 shrink-0">
               <div className="h-48 w-48 rounded-full overflow-hidden border-4 border-white shadow-xl relative bg-slate-50">
                 <img
-                  src="/prophete_assande.png"
+                  src="/photos/557639439_122134580888950124_3761980451903721161_n.jpg"
                   alt="Prophète ASSANDE Jacques"
                   className="w-full h-full object-cover"
                 />

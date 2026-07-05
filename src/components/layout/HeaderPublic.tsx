@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Heart } from 'lucide-react';
-import { gsap } from 'gsap';
 
 const logo = '/logo.jpg';
 
 export const HeaderPublic: React.FC = () => {
   const [menuOuvert, setMenuOuvert] = useState(false);
   const [defile, setDefile] = useState(false);
+  const [monté, setMonté] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -24,22 +24,7 @@ export const HeaderPublic: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // GSAP load stagger transitions
-    gsap.fromTo(
-      '.header-logo',
-      { opacity: 0, x: -30 },
-      { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out' }
-    );
-    gsap.fromTo(
-      '.header-nav-item',
-      { opacity: 0, y: -20 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out', stagger: 0.08, delay: 0.15 }
-    );
-    gsap.fromTo(
-      '.header-cta',
-      { opacity: 0, y: -15 },
-      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out', delay: 0.65 }
-    );
+    setMonté(true);
   }, []);
 
   const liens = [
@@ -69,11 +54,16 @@ export const HeaderPublic: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo & Nom */}
-          <Link href="/" className="flex items-center space-x-3 group header-logo opacity-0">
+          <Link
+            href="/"
+            className={`flex items-center space-x-3 group transition-all duration-700 ease-out transform ${
+              monté ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-6'
+            }`}
+          >
             <img
               src={logo}
               alt="MEDECCI Logo"
-              className="h-10 w-10 rounded-full object-cover border border-medecci-or/30 shadow-sm transition-transform duration-300 group-hover:scale-105"
+              className="h-10 w-10 rounded-xl object-contain bg-white p-0.5 border border-medecci-or/30 shadow-sm transition-transform duration-300 group-hover:scale-105"
             />
             <div className="flex flex-col">
               <span className="font-poppins font-bold text-lg tracking-wider text-medecci-bleuRoyal">
@@ -87,11 +77,14 @@ export const HeaderPublic: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-3">
-            {liens.map((lien) => (
+            {liens.map((lien, index) => (
               <Link
                 key={lien.chemin}
                 href={lien.chemin}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 header-nav-item opacity-0 ${
+                style={{ transitionDelay: monté ? `${index * 50}ms` : '0ms' }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-500 ease-out transform ${
+                  monté ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                } ${
                   estActif(lien.chemin)
                     ? 'text-medecci-bleuRoyal bg-medecci-bleuClair/10'
                     : 'text-medecci-texte/80 hover:text-medecci-bleuRoyal hover:bg-black/5'
@@ -106,7 +99,10 @@ export const HeaderPublic: React.FC = () => {
           <div className="hidden lg:flex items-center space-x-3">
             <Link
               href="/dons"
-              className="flex items-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md hover:opacity-95 transition-all duration-300 hover:-translate-y-0.5 header-cta opacity-0"
+              style={{ transitionDelay: monté ? '400ms' : '0ms' }}
+              className={`flex items-center space-x-2 bg-gradient-to-r from-medecci-bleuRoyal to-medecci-bleuClair text-white px-5 py-2.5 rounded-lg text-sm font-semibold shadow-md hover:opacity-95 transition-all duration-300 hover:-translate-y-0.5 transform ${
+                monté ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+              }`}
             >
               <Heart className="h-4 w-4 fill-white" />
               <span>Faire un Don</span>
